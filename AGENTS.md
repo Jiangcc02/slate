@@ -5,7 +5,7 @@
 
 ## 这个仓库是什么
 
-K12 智慧教育平台（slate）：覆盖教、学、练、测、评全链路的智慧教育系统，含六端（学生 / 教师 / 家长 / 教室端 / 教务 / 校长驾驶舱）。技术基线：Spring Boot 3（业务单体）+ Python（Agent 运行时）+ Vue 3，双运行时经契约交互（见 `docs/architecture/contracts/agent-boundary.md`）。当前处于文档与架构阶段，尚无代码。
+K12 智慧教育平台（slate）：覆盖教、学、练、测、评全链路的智慧教育系统，含六端（学生 / 教师 / 家长 / 教室端 / 教务 / 校长端）。技术基线：Spring Boot 3（业务单体）+ Python（Agent 运行时）+ Vue 3，双运行时经契约交互（见 `docs/architecture/contracts/agent-boundary.md`）。当前处于文档与架构阶段，尚无代码。
 
 ## 阅读动线（领取任务后按序阅读）
 
