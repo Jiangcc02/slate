@@ -21,6 +21,7 @@ K12 智慧教育平台（slate）：覆盖教、学、练、测、评全链路�
 ## 行为约束（指针，正文见对应文件）
 
 - 流程红线（分支 / 提交 / PR / Issue）：`docs/guides/git-workflow.md` §2 硬性约束
+- Git 身份（成员的 Agent，首次提交前）：本仓库未配置 `agent-<名字>` 身份时，先请成员输入名字并完成仓库级配置（git-workflow §2.9），未配置不得提交；协调者侧的 Agent 例外，随协调者身份提交
 - 架构与结构红线：`docs/architecture/iron-laws.md`
 - 文档写作规则：`docs/guides/design-guide.md`
 
