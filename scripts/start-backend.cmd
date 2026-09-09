@@ -14,24 +14,39 @@ echo ============================================
 
 rem -- detect JDK 17 (installed on YOUR computer, not in this repo) --
 rem order: SLATE_JDK17 env var (any unzip dir) > JAVA_HOME > machine-local convention dir (optional)
+rem whatever is picked is then checked to actually BE major version 17+ (see jdk_picked)
 set "JDK_HOME="
 if defined SLATE_JDK17 (
     if exist "%SLATE_JDK17%\bin\java.exe" (
         set "JDK_HOME=%SLATE_JDK17%"
-        goto jdk_done
+        goto jdk_picked
     )
 )
 if exist "%JAVA_HOME%\bin\java.exe" (
     set "JDK_HOME=%JAVA_HOME%"
-    echo [hint] using system JAVA_HOME, make sure it is JDK 17+
-    goto jdk_done
+    goto jdk_picked
 )
 if exist "%USERPROFILE%\.zcode\tools\jdk-17.0.2\bin\java.exe" (
     rem machine-local convenience dir, exists only on the coordinator PC - harmless elsewhere
     set "JDK_HOME=%USERPROFILE%\.zcode\tools\jdk-17.0.2"
-    goto jdk_done
+    goto jdk_picked
 )
 echo [ERROR] JDK 17 not found on this computer.
+echo        1) Install Temurin 17: https://adoptium.net/temurin/releases/?version=17
+echo        2) Or unzip JDK 17 to any dir on your PC and set env var SLATE_JDK17 to it
+pause
+exit /b 1
+
+:jdk_picked
+rem a found java.exe is not enough (JDK 8 on JAVA_HOME would pass) - verify the version
+for /f "usebackq tokens=3" %%v in (`"%JDK_HOME%\bin\java.exe" -version 2^>^&1 ^| findstr /i version`) do (
+    for /f "tokens=1,2 delims=." %%x in ("%%~v") do (
+        rem 17.0.20.1 style: first number is the major; 1.8.0_202 style: second number is
+        if %%x geq 17 goto jdk_done
+        if "%%x"=="1" if %%y geq 17 goto jdk_done
+    )
+)
+echo [ERROR] java found but it is not JDK 17+ : %JDK_HOME%
 echo        1) Install Temurin 17: https://adoptium.net/temurin/releases/?version=17
 echo        2) Or unzip JDK 17 to any dir on your PC and set env var SLATE_JDK17 to it
 pause
@@ -79,6 +94,15 @@ echo [env] Maven: %MVN_CMD%
 if /i "%~1"=="--check" (
     echo [check] environment OK, not starting - --check mode
     exit /b 0
+)
+
+rem fail early when the port is taken - a running instance locks the jar and breaks repackage
+netstat -ano | findstr /r /c:":8080 .*LISTENING" >nul 2>nul
+if not errorlevel 1 (
+    echo [ERROR] port 8080 is already in use - a previous slate backend is probably still running.
+    echo        stop that instance first, then run this script again.
+    pause
+    exit /b 1
 )
 
 set "JAVA_HOME=%JDK_HOME%"

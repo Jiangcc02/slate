@@ -9,6 +9,7 @@ slate = K12 智慧教育平台（教/学/练/测/评全链路，六端）。当�
 - 后端：`backend/`，Spring Boot 3 模块化单体（Maven 多 module，JDK 17）
 - 前端：`frontend/`，Vue 3 pnpm monorepo（管理端 + 学生端，shadcn-vue / Tailwind CSS v4）
 - 基础设施（本地开发必需）：MySQL 8（:3306，库 `slate` 由应用启动时自动创建并建表/种子）+ Redis（:6379）+ MinIO（:9000 API / :9001 控制台）——Redis/MinIO 在仓库根 `docker compose up -d` 一键起；MySQL 建议本机安装或自行容器化
+- MySQL 凭证（不入仓库，每人自备）：把 `backend/slate-boot/src/main/resources/application-local.yml.example` 复制为同目录 `application-local.yml` 并填入本机账号密码；或设环境变量 `SLATE_MYSQL_USER` / `SLATE_MYSQL_PASSWORD`，两种方式任选其一
 - 未就绪：外部通知渠道（邮件/短信/微信仅预留接口）、WebSocket 实时推送（随三期随堂测引入）
 
 ## 2. 环境要求
@@ -31,7 +32,7 @@ slate = K12 智慧教育平台（教/学/练/测/评全链路，六端）。当�
 | `scripts\start-backend.cmd` | 启动后端 slate-boot（:8080） | 双击或命令行运行；`--check` 仅自检环境 |
 | `scripts\start-frontend.cmd` | 启动管理端（:5173）+ 学生端（:5174），各占一个窗口 | 同上；首次自动 `pnpm install` |
 
-脚本会自动探测**你电脑上**的 JDK/Maven。JDK 顺序：`SLATE_JDK17` 环境变量 → `JAVA_HOME` → 个别机器的本地约定目录；Maven 顺序：`SLATE_M2` 环境变量 → 本地约定目录 → PATH（PATH 上每个候选都会先验证能真正运行才采用；最终选中的以完整路径调用，不受运行时二次解析影响）。本地约定目录仅协调者电脑存在，其他机器探测落空后自动尝试下一级、全部落空则给出安装指引。
+脚本会自动探测**你电脑上**的 JDK/Maven。JDK 顺序：`SLATE_JDK17` 环境变量 → `JAVA_HOME` → 个别机器的本地约定目录，选中的会进一步验证主版本确实是 17+（`JAVA_HOME` 指着 JDK 8 这类情况会在探测期被拦下并给出指引）；Maven 顺序：`SLATE_M2` 环境变量 → 本地约定目录 → PATH（PATH 上每个候选都会先验证能真正运行才采用；最终选中的以完整路径调用，不受运行时二次解析影响）。本地约定目录仅协调者电脑存在，其他机器探测落空后自动尝试下一级、全部落空则给出安装指引。
 注意两点：脚本输出为**英文**（cmd 批处理对非 ASCII 内容有解析兼容问题，中文说明以本文档为准）；出错或结束时窗口会**停留**（`pause`），报错信息不会被闪退吞掉。
 
 ## 4. 手动启动（非 Windows / 不用脚本）
