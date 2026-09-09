@@ -11,9 +11,12 @@ import com.baomidou.mybatisplus.extension.plugins.inner.PaginationInnerIntercept
 import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 @Configuration
-@MapperScan("com.slate.platform.internal.auth.mapper")   // 新业务模块的 mapper 包在此逗号追加
+@EnableScheduling   // 领域事件投递器等定时任务
+@MapperScan({"com.slate.platform.internal.auth.mapper", "com.slate.platform.internal.audit.mapper",
+        "com.slate.platform.internal.events.mapper", "com.slate.platform.internal.org.mapper"})
 public class MybatisPlusConfig {
 
     @Bean

@@ -91,6 +91,8 @@
           <configuration>
             <release>${maven.compiler.release}</release>
             <encoding>${project.build.sourceEncoding}</encoding>
+            <!-- Spring 6.1+ 依赖参数名解析 @PathVariable/@RequestParam，必须保留 -->
+            <parameters>true</parameters>
           </configuration>
         </plugin>
         <plugin>

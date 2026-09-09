@@ -8,7 +8,8 @@ slate = K12 智慧教育平台（教/学/练/测/评全链路，六端）。当�
 
 - 后端：`backend/`，Spring Boot 3 模块化单体（Maven 多 module，JDK 17）
 - 前端：`frontend/`，Vue 3 pnpm monorepo（管理端 + 学生端，shadcn-vue / Tailwind CSS v4）
-- 数据库等基础设施（MySQL 8 / Redis / MinIO）**当前骨架阶段还不需要**——随底座实现任务包引入（届时在此文档更新 docker-compose 说明）
+- 基础设施（认证授权已上线，**本地开发必需**）：MySQL 8（:3306，库 `slate` 由应用启动时自动创建并建表/种子）+ Redis（:6379）。Redis 没有的话在仓库根 `docker compose up -d` 起一个；MySQL 建议本机安装或自行容器化
+- 未就绪（随后续底座任务包）：MinIO 文件存储、消息中心等
 
 ## 2. 环境要求
 
@@ -49,9 +50,9 @@ pnpm --filter @slate/student dev    # 学生端 http://localhost:5174
 
 ## 5. 验证跑通了
 
-1. 后端健康检查：`curl http://localhost:8080/actuator/health` → `{"status":"UP"}`
-2. 打开 http://localhost:5173 与 http://localhost:5174，应看到各自登录页（shadcn 风格卡片表单）
-3. 登录页提交报「网络异常」或 `AUTH-xxx` 错误 = **符合预期**：认证接口随底座实现任务包交付，当前骨架阶段调用链只到统一错误提示
+1. 后端健康检查：`curl http://localhost:8080/actuator/health` → `{"status":"UP"}`（首次启动自动建库建表+种子）
+2. 登录闭环：`curl -X POST http://localhost:8080/api/v1/auth/login -H "Content-Type: application/json" -d '{"username":"admin","password":"admin123"}'` → 返回双 token（种子账号：admin/admin123 管理员、teacher01/teacher02 密码 teacher123 教师）
+3. 打开 http://localhost:5173 与 http://localhost:5174，用 **admin / admin123** 登录（登录成功即通；页面级的登录后首页随后续任务包交付）
 
 ## 6. 常见问题
 

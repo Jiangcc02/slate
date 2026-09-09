@@ -16,6 +16,9 @@ public enum SysErrorCode implements ErrorCode {
     /** 参数校验失败（请求体/参数不合法） */
     SYS_001("SYS-001", "参数校验失败"),
 
+    /** 重复请求处理中（同 Idempotency-Key 的首次请求尚未完成，稍后重试取首次结果） */
+    SYS_005("SYS-005", "重复请求处理中"),
+
     /** 系统内部错误（未分类异常兜底） */
     SYS_999("SYS-999", "系统内部错误");
 

@@ -17,8 +17,8 @@ spring:
     init:
       mode: always   # 幂等：表 CREATE IF NOT EXISTS，种子 INSERT IGNORE
       encoding: UTF-8   # SQL 脚本编码（Windows 默认 GBK 会把中文种子写坏）
-      schema-locations: classpath:db/init/01_schema.sql
-      data-locations: classpath:db/init/02_seed.sql
+      schema-locations: classpath:db/init/01_schema.sql,classpath:db/init/03_schema_org.sql
+      data-locations: classpath:db/init/02_seed.sql,classpath:db/init/04_seed_org.sql
   data:
     redis:
       host: ${SLATE_REDIS_HOST:localhost}
