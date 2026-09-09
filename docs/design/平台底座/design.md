@@ -48,9 +48,9 @@ Maven 多 module 渐进式：`slate-common`（契约模型，无 Spring）← `s
 
 ### 3.4 Agent-ready 三件套的落地方式（L8 义务）
 
-1. **幂等**：framework 提供 `@Idempotent` 拦截器（Redis SETNX + 首次结果缓存 24h），业务接口声明式接入；Agent 双身份调用自动受益
-2. **审计**：`@Audited` 切面 + MDC traceId，所有写操作默认进操作日志（含 `X-Service-Id` / `X-On-Behalf-Of` 双身份）
-3. **事件外发**：`DomainEventPublisher`（事务提交后落 outbox），业务域声明事件类型外发；Agent 运行时未来订阅
+1. **幂等**：framework 提供 `IdempotentFilter`（写请求 + `Idempotency-Key` 头 → Redis 首次结果缓存 24h，重复重放；业务代码零接入）
+2. **审计**：framework 提供 `@Audited` 注解 + 切面（记录 谁/双身份/动作/参数摘要/结果/traceId，经 Spring 事件由 platform 落 operation_log）
+3. **事件外发**：`DomainEventPublisher` 接口暴露于 `com.slate.platform.api.events`（业务域经契约包调用），实现为 **outbox 模式**（业务事务内落 domain_event 表，独立投递器轮询外发、2^n 退避、超限死信；投递目标 `slate.events.webhook-url` 配置，未配置时只落表可观测）
 
 ## 4. 详细设计（detail/）
 
