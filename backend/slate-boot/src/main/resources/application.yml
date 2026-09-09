@@ -17,8 +17,8 @@ spring:
     init:
       mode: always   # 幂等：表 CREATE IF NOT EXISTS，种子 INSERT IGNORE
       encoding: UTF-8   # SQL 脚本编码（Windows 默认 GBK 会把中文种子写坏）
-      schema-locations: classpath:db/init/01_schema.sql,classpath:db/init/03_schema_org.sql
-      data-locations: classpath:db/init/02_seed.sql,classpath:db/init/04_seed_org.sql
+      schema-locations: classpath:db/init/01_schema.sql,classpath:db/init/03_schema_org.sql,classpath:db/init/05_schema_user.sql,classpath:db/init/07_schema_msg.sql,classpath:db/init/08_schema_file.sql,classpath:db/init/09_schema_sys.sql
+      data-locations: classpath:db/init/02_seed.sql,classpath:db/init/04_seed_org.sql,classpath:db/init/06_seed_user.sql,classpath:db/init/10_seed_sys.sql
   data:
     redis:
       host: ${SLATE_REDIS_HOST:localhost}
@@ -45,6 +45,22 @@ slate:
     secret: ${SLATE_JWT_SECRET:slate-dev-only-secret-key-32bytes!!}
     access-ttl: PT2H    # 双 token 定稿（api-conventions §2）
     refresh-ttl: P7D
+  crypto:
+    # 敏感字段 AES-256-GCM 密钥（32 字节）；生产必须经环境变量注入，此默认值仅本地开发
+    key: ${SLATE_CRYPTO_KEY:0123456789abcdef0123456789abcdef}
+  events:
+    webhook-url: ${SLATE_EVENT_WEBHOOK:}   # 领域事件投递目标（空=只落 outbox 不投递，Agent 运行时接入后配置）
+  storage:
+    endpoint: ${SLATE_MINIO_ENDPOINT:http://localhost:9000}
+    access-key: ${SLATE_MINIO_USER:minioadmin}
+    secret-key: ${SLATE_MINIO_PASSWORD:minioadmin}
+    bucket: slate
+  files:
+    # 类型白名单与大小上限（按 bizType；契约 detail/api/文件服务.md）
+    whitelist:
+      courseware: { extensions: [pptx, pdf, html], max-size-bytes: 524288000 }
+      image: { extensions: [jpg, jpeg, png, webp], max-size-bytes: 10485760 }
+      video: { extensions: [mp4], max-size-bytes: 2147483648 }
 
 logging:
   pattern:

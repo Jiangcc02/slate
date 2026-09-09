@@ -8,8 +8,8 @@ slate = K12 智慧教育平台（教/学/练/测/评全链路，六端）。当�
 
 - 后端：`backend/`，Spring Boot 3 模块化单体（Maven 多 module，JDK 17）
 - 前端：`frontend/`，Vue 3 pnpm monorepo（管理端 + 学生端，shadcn-vue / Tailwind CSS v4）
-- 基础设施（认证授权已上线，**本地开发必需**）：MySQL 8（:3306，库 `slate` 由应用启动时自动创建并建表/种子）+ Redis（:6379）。Redis 没有的话在仓库根 `docker compose up -d` 起一个；MySQL 建议本机安装或自行容器化
-- 未就绪（随后续底座任务包）：MinIO 文件存储、消息中心等
+- 基础设施（本地开发必需）：MySQL 8（:3306，库 `slate` 由应用启动时自动创建并建表/种子）+ Redis（:6379）+ MinIO（:9000 API / :9001 控制台）——Redis/MinIO 在仓库根 `docker compose up -d` 一键起；MySQL 建议本机安装或自行容器化
+- 未就绪：外部通知渠道（邮件/短信/微信仅预留接口）、WebSocket 实时推送（随三期随堂测引入）
 
 ## 2. 环境要求
 
