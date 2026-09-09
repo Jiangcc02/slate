@@ -10,6 +10,7 @@
 
 | 路径 | 是什么 | 详细导航 |
 |---|---|---|
+| `quickstart.md` | 本地环境搭建与一键启动指南（含启动脚本） | — |
 | `backend/` | 后端工程：Spring Boot 3 模块化单体（Maven 多 module，结构见 `backend/AGENTS.md`） | `backend/AGENTS.md` |
 | `frontend/` | 前端工程：Vue 3 pnpm monorepo（管理端/学生端 + 教室端占位 + shared 共享包） | `frontend/AGENTS.md` |
 | `docs/product/core.md` | 产品宪法：定位、角色、域清单、契约原则 | — |
