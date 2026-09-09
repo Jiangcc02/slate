@@ -7,6 +7,7 @@ assignees: []
 ---
 
 <!-- 填写纪律：一个 Issue 一件事；验收标准必须可检验；发布前必须指派 assignee -->
+<!-- 分档：微档小迭代（bugfix、小调整）可发单阶段 fix Issue，跳过设计阶段，见 docs/guides/design-guide.md §5 -->
 
 ## 目标
 
@@ -28,7 +29,8 @@ assignees: []
 
 ## 需求依据
 
-<!-- 指向 docs/ 或 reference/ 中的具体文件与章节；无则写"无" -->
+<!-- 阶段二实现 Issue：此处填设计文档路径（docs/design/<模块>/design.md）；
+     其他任务：指向 docs/ 或 reference/ 中的具体文件与章节；无则写"无" -->
 
 ## 技术约束
 

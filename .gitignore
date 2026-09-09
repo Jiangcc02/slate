@@ -1,0 +1,24 @@
+# 临时草稿区：不入库、不登记、随时可删，结论须回流 design/ 或 Issue
+scratch/
+
+# 构建产物与依赖
+node_modules/
+target/
+dist/
+build/
+*.class
+*.jar
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# 环境与密钥（永不入库；疑似入库见 iron-laws L6）
+.env
+*.pem
+application-local.yml
+
+# 系统文件
+.DS_Store
+Thumbs.db
