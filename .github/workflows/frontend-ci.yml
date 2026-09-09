@@ -1,0 +1,55 @@
+# 域/模块: 平台底座/CI 防线
+# 类型: CI 工作流
+# 职责: PR→dev 的前端防线——lint + type-check + build + L1 文件头检查，违规即失败
+# 设计文档: docs/design/平台底座/design.md
+# 维护者: 协调者 / agent-fffabc
+name: 前端 CI 防线
+
+on:
+  pull_request:
+    branches: [dev]
+    paths:
+      - "frontend/**"
+      - ".github/workflows/frontend-ci.yml"
+  push:
+    branches: [dev]
+    paths:
+      - "frontend/**"
+      - ".github/workflows/frontend-ci.yml"
+
+jobs:
+  verify:
+    name: lint + type-check + build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 安装 pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 11.24.0
+
+      - name: 安装 Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+          cache-dependency-path: frontend/pnpm-lock.yaml
+
+      - name: 安装依赖
+        run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: 类型检查
+        run: pnpm type-check
+
+      - name: 构建
+        run: pnpm build
+
+      - name: L1 文件头检查
+        run: bash scripts/check-file-headers.sh

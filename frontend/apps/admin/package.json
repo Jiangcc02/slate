@@ -1,0 +1,25 @@
+{
+  "name": "@slate/admin",
+  "version": "0.1.0",
+  "private": true,
+  "description": "slate 管理端（教师/教务/管理员/校长端）",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "type-check": "vue-tsc --noEmit"
+  },
+  "dependencies": {
+    "@slate/shared": "workspace:*",
+    "element-plus": "^2.9.0",
+    "pinia": "^3.0.0",
+    "vue": "^3.5.0",
+    "vue-router": "^4.5.0"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^6.0.0",
+    "typescript": "^5.8.0",
+    "vite": "^7.0.0",
+    "vue-tsc": "^2.2.0"
+  }
+}

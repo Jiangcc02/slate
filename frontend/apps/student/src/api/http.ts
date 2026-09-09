@@ -1,0 +1,21 @@
+// 域/模块: 平台底座/学生端应用
+// 类型: 应用 HTTP 实例
+// 职责: 学生端请求客户端——token 注入与 401 跳登录（契约行为见 @slate/shared）
+// 设计文档: docs/design/平台底座/design.md
+// 维护者: 协调者 / agent-fffabc
+import { createHttp } from "@slate/shared";
+import router from "../router";
+
+const ACCESS_TOKEN_KEY = "slate.student.accessToken";
+
+export const http = createHttp("/api/v1", {
+  getAccessToken: () => localStorage.getItem(ACCESS_TOKEN_KEY) ?? undefined,
+  onUnauthorized: () => {
+    localStorage.removeItem(ACCESS_TOKEN_KEY);
+    router.push({ name: "login" });
+  },
+});
+
+export function saveAccessToken(token: string) {
+  localStorage.setItem(ACCESS_TOKEN_KEY, token);
+}

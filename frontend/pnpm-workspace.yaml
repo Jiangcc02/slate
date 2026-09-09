@@ -1,0 +1,7 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+# 域/模块: 平台底座/前端工程配置（注释语法：YAML 不支持 //，本行为说明性注释）
+# esbuild 需要运行安装脚本下载平台二进制（vite 构建依赖），显式允许（铁律 L6：仅此白名单，新依赖须审查后再加）
+allowBuilds:
+  esbuild: true
