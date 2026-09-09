@@ -30,7 +30,7 @@
 6. 禁止修改 `docs/guides/`、`.github/` 下的规程文件，除非 Issue 明确要求或人类指示
 7. 禁止修改 `reference/` 目录（课程参考资料，只读），除非 Issue 明确要求
 8. 一个 PR 只对应一个 Issue；禁止提交与 Issue 无关的改动
-9. git 身份：成员的 Agent 必须使用 `agent-<名字>` 格式（如 `agent-claude`），名字由成员提供；人类用真实名；禁止伪造他人身份。**Agent 首次在本仓库工作前自检**：`git config user.name` 为空或不以 `agent-` 开头 → 停下请成员输入名字，完成仓库级配置（`git config user.name`，`user.email` 用成员 GitHub 账号的 noreply 邮箱）后方可提交；协调者侧的 Agent 随协调者本人身份提交，无需另配
+9. git 身份：Agent 必须使用 `agent-<名字>` 格式（如 `agent-claude`），名字由成员提供、协调者侧由协调者定；人类用真实名；禁止伪造他人身份。**Agent 首次在本仓库工作前自检**：`git config user.name` 为空或不以 `agent-` 开头 → 停下请成员输入名字，完成仓库级配置（`git config user.name`，`user.email` 用成员 GitHub 账号的 noreply 邮箱）后方可提交
 10. 禁止提交：密钥 / 口令 / token、`node_modules/`、`target/` 等构建产物、临时文件
 
 ---
