@@ -1,0 +1,13 @@
+# 域/模块: 平台底座/本地基础设施
+# 类型: Docker Compose
+# 职责: 本地开发依赖——Redis 7（refresh 白名单/失败锁定/权限缓存）；MySQL 7 用本机已装实例（3306）
+# 设计文档: docs/design/平台底座/design.md
+# 维护者: 协调者 / agent-fffabc
+# 用法：docker compose up -d（仓库根执行）
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: slate-redis
+    ports:
+      - "6379:6379"
+    restart: unless-stopped

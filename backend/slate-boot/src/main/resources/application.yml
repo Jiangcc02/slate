@@ -1,11 +1,28 @@
 # 域/模块: 平台底座/启动器
 # 类型: 全局配置
-# 职责: slate 单体基础配置——应用名、端口、actuator 健康检查、雪花 ID 机器号
+# 职责: slate 单体配置——数据源（createDatabaseIfNotExist + 启动建表/种子，幂等可重复）、Redis、JWT、雪花 ID
 # 设计文档: docs/design/平台底座/design.md
 # 维护者: 协调者 / agent-fffabc
 spring:
   application:
     name: slate
+  profiles:
+    active: ${SPRING_PROFILES_ACTIVE:local}   # local 配置不入库（application-local.yml）
+  datasource:
+    url: ${SLATE_MYSQL_URL:jdbc:mysql://localhost:3306/slate?createDatabaseIfNotExist=true&useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai}
+    username: ${SLATE_MYSQL_USER:user}
+    password: ${SLATE_MYSQL_PASSWORD:}   # 密码不落库：环境变量或 application-local.yml 提供
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  sql:
+    init:
+      mode: always   # 幂等：表 CREATE IF NOT EXISTS，种子 INSERT IGNORE
+      encoding: UTF-8   # SQL 脚本编码（Windows 默认 GBK 会把中文种子写坏）
+      schema-locations: classpath:db/init/01_schema.sql
+      data-locations: classpath:db/init/02_seed.sql
+  data:
+    redis:
+      host: ${SLATE_REDIS_HOST:localhost}
+      port: ${SLATE_REDIS_PORT:6379}
 
 server:
   port: 8080
@@ -16,9 +33,18 @@ management:
       exposure:
         include: health,info
 
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+
 slate:
   id:
     worker: 1   # 雪花 ID 机器号（0~1023），多实例部署必须唯一
+  jwt:
+    # HS256 密钥 ≥32 字节；生产必须经环境变量注入，此默认值仅本地开发
+    secret: ${SLATE_JWT_SECRET:slate-dev-only-secret-key-32bytes!!}
+    access-ttl: PT2H    # 双 token 定稿（api-conventions §2）
+    refresh-ttl: P7D
 
 logging:
   pattern:

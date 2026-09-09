@@ -63,7 +63,7 @@
 import { reactive, ref } from "vue";
 import { ApiError } from "@slate/shared";
 import { authApi } from "../api/auth";
-import { saveAccessToken } from "../api/http";
+import { saveTokenPair } from "../api/http";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -84,7 +84,7 @@ async function onSubmit() {
   errorMessage.value = "";
   try {
     const tokens = await authApi.login(form.username, form.password);
-    saveAccessToken(tokens.accessToken);
+    saveTokenPair(tokens.accessToken, tokens.refreshToken);
   } catch (error) {
     // 后端 auth 未实现前此处多为网络错误；实现后展示契约错误码（语义冻结，见 api-conventions §4）
     errorMessage.value =

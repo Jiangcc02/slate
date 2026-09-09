@@ -1,6 +1,6 @@
 # 域/模块: 平台底座/CI 防线
 # 类型: CI 工作流
-# 职责: PR→dev 的后端防线——编译+测试（含 ArchUnit 依赖规则）+ L1 文件头检查，违规即失败
+# 职责: PR→dev 的后端防线——MySQL/Redis 服务容器 + 编译+测试（含 ArchUnit + 集成装配）+ L1 头检查
 # 设计文档: docs/design/平台底座/design.md
 # 维护者: 协调者 / agent-fffabc
 name: 后端 CI 防线
@@ -21,6 +21,30 @@ jobs:
   verify:
     name: 编译 + 测试 + 架构防线
     runs-on: ubuntu-latest
+    services:
+      mysql:
+        image: mysql:8
+        env:
+          MYSQL_ROOT_PASSWORD: ci-mysql-pass   # 仅 CI 一次性实例
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="mysqladmin ping -proot -pci-mysql-pass"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=10
+    env:
+      SLATE_MYSQL_USER: root
+      SLATE_MYSQL_PASSWORD: ci-mysql-pass
     steps:
       - uses: actions/checkout@v4
 
@@ -31,7 +55,7 @@ jobs:
           java-version: "17"
           cache: maven
 
-      - name: 编译与测试（含 ArchUnit）
+      - name: 编译与测试（含 ArchUnit 与上下文装配，建表/种子随启动幂等执行）
         run: mvn -B -f backend/pom.xml verify
 
       - name: L1 文件头检查

@@ -10,9 +10,9 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 
 /**
  * slate 后端启动入口。
- * 组件扫描范围 com.slate：common（无组件）+ framework（基础设施件）+ platform（底座域）+ 后续各业务域 module。
+ * 组件扫描显式声明为 com.slate：common（无组件）+ framework（基础设施件）+ platform（底座域）+ 后续各业务域 module。
  */
-@SpringBootApplication
+@SpringBootApplication(scanBasePackages = "com.slate")
 public class SlateApplication {
 
     public static void main(String[] args) {

@@ -7,8 +7,11 @@ package com.slate.boot;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.test.context.ActiveProfiles;
 
+/** 需要本机 MySQL(3306) 与 Redis(6379)；本地凭证在 application-local.yml（不入库），CI 走环境变量 */
 @SpringBootTest
+@ActiveProfiles("local")
 class SlateApplicationTests {
 
     @Test
