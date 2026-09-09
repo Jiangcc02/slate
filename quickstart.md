@@ -27,13 +27,15 @@ slate = K12 智慧教育平台（教/学/练/测/评全链路，六端）。当�
 | `scripts\start-frontend.cmd` | 启动管理端（:5173）+ 学生端（:5174），各占一个窗口 | 同上；首次自动 `pnpm install` |
 
 脚本会自动探测 JDK/Maven（含本机 `~\.zcode\tools\` 工具目录兜底），探测失败会给出安装指引。
+注意两点：脚本输出为**英文**（cmd 批处理对非 ASCII 内容有解析兼容问题，中文说明以本文档为准）；出错或结束时窗口会**停留**（`pause`），报错信息不会被闪退吞掉。
 
 ## 4. 手动启动（非 Windows / 不用脚本）
 
 ```bash
-# 后端（JDK 17 + Maven）
+# 后端（JDK 17 + Maven）：先打包再运行（多模块下不要直接对父 POM 跑 spring-boot:run）
 cd backend
-mvn -pl slate-boot -am spring-boot:run
+mvn -pl slate-boot -am package -DskipTests
+java -jar slate-boot/target/slate-boot-*.jar
 
 # 前端（两个终端各起一个；首次先在 frontend/ 下 pnpm install）
 cd frontend
