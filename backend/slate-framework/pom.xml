@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  域/模块: 平台底座/工程规范（slate-framework）
+  类型: 构建配置
+  职责: Spring 基础设施——全局异常、traceId 链路、雪花 ID；幂等/审计/事件外发随底座实现任务补齐
+  设计文档: docs/design/平台底座/design.md
+  维护者: 协调者 / agent-fffabc
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>com.slate</groupId>
+    <artifactId>slate-backend</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>slate-framework</artifactId>
+  <name>slate-framework</name>
+  <description>工程规范机制：全局异常处理、traceId 链路、雪花 ID 生成</description>
+
+  <dependencies>
+    <dependency>
+      <groupId>com.slate</groupId>
+      <artifactId>slate-common</artifactId>
+      <version>${project.version}</version>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-web</artifactId>
+    </dependency>
+    <dependency>
+      <groupId>org.springframework.boot</groupId>
+      <artifactId>spring-boot-starter-test</artifactId>
+      <scope>test</scope>
+    </dependency>
+  </dependencies>
+</project>

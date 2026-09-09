@@ -1,0 +1,25 @@
+# 域/模块: 平台底座/启动器
+# 类型: 全局配置
+# 职责: slate 单体基础配置——应用名、端口、actuator 健康检查、雪花 ID 机器号
+# 设计文档: docs/design/平台底座/design.md
+# 维护者: 协调者 / agent-fffabc
+spring:
+  application:
+    name: slate
+
+server:
+  port: 8080
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+
+slate:
+  id:
+    worker: 1   # 雪花 ID 机器号（0~1023），多实例部署必须唯一
+
+logging:
+  pattern:
+    level: "%5p [%X{traceId:-}]"   # TraceIdFilter 写入的 MDC 键，与响应 traceId 同源
