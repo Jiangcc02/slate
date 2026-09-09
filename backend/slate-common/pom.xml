@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  域/模块: 平台底座/工程规范（slate-common）
+  类型: 构建配置
+  职责: 全系统公共契约模型（统一响应/错误码/分页），无 Spring 依赖，被所有 module 依赖
+  设计文档: docs/design/平台底座/design.md
+  维护者: 协调者 / agent-fffabc
+-->
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>com.slate</groupId>
+    <artifactId>slate-backend</artifactId>
+    <version>0.1.0-SNAPSHOT</version>
+  </parent>
+
+  <artifactId>slate-common</artifactId>
+  <name>slate-common</name>
+  <description>公共契约模型：统一响应、错误码、分页（api-conventions §3/§4/§5 的代码形态）</description>
+</project>
