@@ -17,7 +17,8 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @EnableScheduling   // 领域事件投递器等定时任务
 @MapperScan({"com.slate.platform.internal.auth.mapper", "com.slate.platform.internal.audit.mapper",
         "com.slate.platform.internal.events.mapper", "com.slate.platform.internal.org.mapper",
-        "com.slate.platform.internal.user.mapper", "com.slate.platform.internal.msg.mapper"})
+        "com.slate.platform.internal.user.mapper", "com.slate.platform.internal.msg.mapper",
+        "com.slate.platform.internal.file.mapper"})
 public class MybatisPlusConfig {
 
     @Bean
