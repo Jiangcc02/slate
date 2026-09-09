@@ -14,7 +14,7 @@
 | 远端名 | `origin` |
 | 主干分支 | `main`（稳定可演示版）、`dev`（日常集成主干） |
 | 工作语言 | 中文（提交信息、PR、Issue 均使用中文） |
-| 目录职责 | `docs/` 产品文档　`guides/` 规程与指南　`reference/` 课程参考资料（**只读**） |
+| 目录职责 | `docs/` 产品文档（`docs/guides/` 为规程与指南）　`reference/` 课程参考资料（**只读**） |
 
 ---
 
@@ -27,7 +27,7 @@
 3. 禁止合并未获 approve 的 PR；禁止 approve 自己的 PR；禁止合并自己发起的 PR
 4. 禁止删除未合并的分支
 5. 禁止创建 Issue；只能读取并处理 **assignee 是自己** 的 Issue，禁止处理他人 Issue
-6. 禁止修改 `guides/`、`.github/` 下的规程文件，除非 Issue 明确要求或人类指示
+6. 禁止修改 `docs/guides/`、`.github/` 下的规程文件，除非 Issue 明确要求或人类指示
 7. 禁止修改 `reference/` 目录（课程参考资料，只读），除非 Issue 明确要求
 8. 一个 PR 只对应一个 Issue；禁止提交与 Issue 无关的改动
 9. git 身份：Agent 必须使用 `agent-<名字>` 格式（如 `agent-claude`），人类用真实名；禁止伪造他人身份
@@ -104,7 +104,7 @@ gh pr create --base dev --title "<PR标题>" --body-file pr.md
 ### WF-5 响应评审与合并
 
 - 评审意见逐条回应：修改后追加提交（`fix(<scope>): 按评审意见修改<要点>`），并在 PR 评论中说明
-- 评审通过（≥1 approve）后由评审人或协调者执行 **squash merge**；Agent 不得合并自己发起的 PR
+- 评审通过（≥1 approve）后由评审人执行 **squash merge**；Agent 不得合并自己发起的 PR
 - 合并后清理分支：
 
 ```bash
@@ -122,9 +122,9 @@ git pull origin dev
 ```
 
 - 确认 Issue 已随合并自动关闭；未关闭则手动关闭并附 PR 链接
-- 向协调者报告完成
+- 向任务来源报告完成
 
-### 阶段发布（仅协调者或获明确授权者执行）
+### 阶段发布（仅获人类明确授权者执行）
 
 ```bash
 git switch main && git pull origin main
@@ -157,7 +157,7 @@ git push origin main --tags
 |---|---|
 | `feat(测评): 支持错题自动归组` | `update` |
 | `fix(登录): 修复 token 过期后死循环` | `修改了一些文件` |
-| `docs(guides): 新增 git 工作流规程` | `feat: 完成所有功能`（范围失真） |
+| `docs(workflow): 新增 git 工作流规程` | `feat: 完成所有功能`（范围失真） |
 
 ---
 
@@ -208,12 +208,12 @@ Closes #<Issue号>
 
 ## 8. 必须请示人类的情形（Escalation）
 
-出现下列任一情况，**停止操作，向协调者说明情况并等待指示**：
+出现下列任一情况，**停止操作，请示人类并等待指示**：
 
 1. 需要 force push、删除共享分支、改写 `main`/`dev` 历史
 2. 需要 hotfix（从 `main` 拉分支）
 3. Issue 描述与实际冲突、验收标准无法检验、任务范围必须变更
-4. 需要修改本规程（`guides/`、`.github/` 下的文件）
+4. 需要修改本规程（`docs/guides/`、`.github/` 下的文件）
 5. 需要新建 Issue，或处理 assignee 不是自己的 Issue
 6. 涉及批量删除文件、依赖变更、数据库结构变更、密钥与配置变更
 7. 任何本规程未覆盖的情况
@@ -233,39 +233,3 @@ Closes #<Issue号>
 | 更新自己的分支 | `git fetch origin && git rebase origin/dev` |
 | 合并后清理 | `git push origin --delete <分支名> && git branch -D <分支名>` |
 | 撤销已推送提交 | `git revert <hash>` |
-
----
-
-## 10. 协调者侧（人类）
-
-### 10.1 首次启用清单（网页操作，一次性）
-
-1. **分支保护**：Settings → Branches → 为 `main` 和 `dev` 添加规则：Require a pull request before merging、Required approvals ≥ 1、禁止 force push 与删除
-2. **Issue 限制**：Settings → General → Features → Issues → 勾选 **Limit to collaborators**（仅协作者可发 Issue）
-3. **创建标签**：`type:feat`、`type:fix`、`type:docs`、`type:chore`、`proposal`；按需创建执行者标签（如 `agent:claude`）
-4. **Projects 看板**（可选）：按 assignee 分组的看板视图，一屏掌握全局进度
-
-### 10.2 发布 Issue
-
-- 网页：Issues → New issue → 选「任务 Task」模板（`.github/ISSUE_TEMPLATE/task.md` 自动加载）
-- 命令行：`gh issue create --title "[任务] …" --body-file task.md --assignee <执行者> --label "type:feat"`
-
-填写纪律：
-
-- 一个 Issue 一件事；大任务拆小，用「依赖」字段串联
-- 验收标准写行为（"给定 X，应得到 Y"），不写感受（"优化体验"）
-- **发布前必须指派 assignee——未指派的 Issue 等于不存在**
-- 术语与 `docs/`、`reference/` 保持一致，需求依据给到具体文件路径与章节
-
-### 10.3 Issue 权限约定
-
-| 角色 | 权限 |
-|---|---|
-| 协调者 | 唯一正式任务发布入口：发 Issue、打标签、指派 assignee |
-| 人类成员 | 不直接发正式任务；用 `proposal` 标签提提案或在相关 Issue 下评论，由协调者审核转正式任务 |
-| Agent | **禁止创建 Issue**；只能处理 assignee 为自己的 Issue |
-
-### 10.4 节奏建议
-
-- 每个开发阶段（对应 P09–P16 各轮）开始时批量发布一轮 Issue
-- 阶段验收时执行 §4 阶段发布：`dev → main`，打 `v0.<阶段>.0` 标签；最终答辩出 `v1.0.0`
