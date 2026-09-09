@@ -1,0 +1,27 @@
+{
+  "name": "slate-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "K12 智慧教育平台前端（Vue 3 pnpm monorepo：学生端 / 管理端 / 教室端）",
+  "packageManager": "pnpm@11.24.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev:admin": "pnpm --filter @slate/admin dev",
+    "dev:student": "pnpm --filter @slate/student dev",
+    "build": "pnpm -r run build",
+    "lint": "eslint .",
+    "type-check": "pnpm -r run type-check",
+    "check-headers": "bash scripts/check-file-headers.sh"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^6.0.0",
+    "eslint": "^9.20.0",
+    "eslint-plugin-vue": "^10.0.0",
+    "typescript": "^5.8.0",
+    "typescript-eslint": "^8.24.0",
+    "vue-tsc": "^2.2.0"
+  }
+}

@@ -1,0 +1,8 @@
+packages:
+  - "apps/*"
+  - "packages/*"
+# 构建脚本白名单（铁律 L6：新依赖须审查后再加）
+# esbuild：下载平台二进制（vite 构建依赖）；vue-demi：reka-ui 依赖，postinstall 切换 Vue 版本入口（本项目 Vue 3）
+allowBuilds:
+  esbuild: true
+  vue-demi: true
