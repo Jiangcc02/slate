@@ -1,0 +1,37 @@
+server:
+  port: 8080
+
+spring:
+  datasource:
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:mysql://localhost:3306/bookshop?useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai&useSSL=false
+    username: root
+    password: root          # ← 改成你自己的 MySQL 密码
+    # Spring Boot 3 推荐用 HikariCP（默认即是），下面是常用调优项
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+
+mybatis-plus:
+  configuration:
+    # 【核心】下划线 → 驼峰自动映射：created_at ⇄ createdAt
+    # 不开启的话实体里查出来的 createdAt 永远是 null
+    map-underscore-to-camel-case: true
+    # 打印 SQL，方便学习阶段观察（生产环境关掉）
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
+  global-config:
+    db-config:
+      # 主键策略：数据库自增（对应 DDL 的 AUTO_INCREMENT）
+      id-type: auto
+      # 逻辑删除（本阶段未使用，先了解）
+      logic-delete-field: deleted
+      logic-delete-value: 1
+      logic-not-delete-value: 0
+  # mapper xml 位置
+  mapper-locations: classpath*:mapper/**/*.xml
+  # 实体类别名包（xml 里可简写 resultType="User"）
+  type-aliases-package: com.example.bookshop.entity
+
+logging:
+  level:
+    com.example.bookshop.mapper: debug

@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.example.bookshop.mapper.BookMapper">
+
+    <resultMap id="BaseResultMap" type="com.example.bookshop.entity.Book">
+        <id column="id" property="id"/>
+        <result column="title" property="title"/>
+        <result column="author" property="author"/>
+        <result column="isbn" property="isbn"/>
+        <result column="price" property="price"/>
+        <result column="stock" property="stock"/>
+        <result column="cover_url" property="coverUrl"/>
+        <result column="description" property="description"/>
+        <result column="category_id" property="categoryId"/>
+        <result column="status" property="status"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+    </resultMap>
+
+    <!-- 多对一：<association> 用 javaType（单个对象，不是集合） -->
+    <resultMap id="BookWithCategoryMap" type="com.example.bookshop.entity.Book"
+               extends="BaseResultMap">
+        <association property="category" javaType="com.example.bookshop.entity.Category">
+            <id column="cat_id" property="id"/>
+            <result column="cat_name" property="name"/>
+            <result column="parent_id" property="parentId"/>
+        </association>
+    </resultMap>
+
+    <!-- 1. 图书 + 分类（N:1 关联） -->
+    <select id="selectBookWithCategory" resultMap="BookWithCategoryMap">
+        SELECT
+        b.*,
+        c.id AS cat_id,
+        c.name AS cat_name,
+        c.parent_id
+        FROM t_book b
+        LEFT JOIN t_category c ON b.category_id = c.id
+        WHERE b.status = 1
+        ORDER BY b.id
+    </select>
+
+    <!-- 2. 动态条件搜索：四个条件全部可空 -->
+    <select id="search" resultMap="BaseResultMap">
+        SELECT * FROM t_book
+        <where>
+            <if test="keyword != null and keyword != ''">
+                AND (title LIKE CONCAT('%', #{keyword}, '%')
+                OR author LIKE CONCAT('%', #{keyword}, '%'))
+            </if>
+            <if test="categoryId != null">
+                AND category_id = #{categoryId}
+            </if>
+            <if test="minPrice != null">
+                AND price &gt;= #{minPrice}
+            </if>
+            <if test="maxPrice != null">
+                AND price &lt;= #{maxPrice}
+            </if>
+            AND status = 1
+        </where>
+        ORDER BY id DESC
+    </select>
+
+    <!--
+      3. 库存扣减（防超卖）
+      关键点：WHERE 里带 stock >= #{num}，让数据库原子性判断。
+      返回 0 行 = 库存不足，业务层据此抛「库存不足」异常。
+      这就是 P04 事务课要配合使用的那条 SQL。
+    -->
+    <update id="deductStock">
+        UPDATE t_book
+        SET stock = stock - #{num},
+        updated_at = NOW()
+        WHERE id = #{id}
+        AND stock &gt;= #{num}
+    </update>
+
+</mapper>

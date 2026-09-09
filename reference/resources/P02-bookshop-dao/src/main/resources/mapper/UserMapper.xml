@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "https://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<!--
+  namespace 必须 = Mapper 接口的全限定名，否则启动时报
+  "Invalid bound statement (not found)"
+-->
+<mapper namespace="com.example.bookshop.mapper.UserMapper">
+
+    <!-- ============================================================
+         1. 基础 resultMap：把下划线列映射到驼峰属性
+            （虽然 application.yml 开了自动映射，但写关联查询时要显式声明）
+         ============================================================ -->
+    <resultMap id="BaseResultMap" type="com.example.bookshop.entity.User">
+        <id column="id" property="id"/>
+        <result column="username" property="username"/>
+        <result column="password" property="password"/>
+        <result column="email" property="email"/>
+        <result column="phone" property="phone"/>
+        <result column="status" property="status"/>
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+    </resultMap>
+
+    <!-- ============================================================
+         2. 关联 resultMap：User + List<Order>（1:N）
+            关键：column 前缀不冲突 + <collection> 用 ofType
+            ⚠️ 常见坑：User 和 Order 都有 id 列，JOIN 后必须起别名区分
+         ============================================================ -->
+    <resultMap id="UserWithOrdersMap" type="com.example.bookshop.entity.User"
+               extends="BaseResultMap">
+        <collection property="orders" ofType="com.example.bookshop.entity.Order">
+            <id column="order_id" property="id"/>
+            <result column="order_no" property="orderNo"/>
+            <result column="user_id" property="userId"/>
+            <result column="total_amount" property="totalAmount"/>
+            <result column="order_status" property="status"/>
+            <result column="receiver" property="receiver"/>
+            <result column="order_created" property="createdAt"/>
+            <result column="paid_at" property="paidAt"/>
+        </collection>
+    </resultMap>
+
+    <sql id="User_Order_Columns">
+        u.id, u.username, u.email, u.phone, u.status, u.created_at, u.updated_at,
+        o.id AS order_id,
+        o.order_no,
+        o.user_id,
+        o.total_amount,
+        o.status AS order_status,
+        o.receiver,
+        o.created_at AS order_created,
+        o.paid_at
+    </sql>
+
+    <select id="selectUserWithOrders" resultMap="UserWithOrdersMap">
+        SELECT
+        <include refid="User_Order_Columns"/>
+        FROM t_user u
+        LEFT JOIN t_order o ON u.id = o.user_id
+        WHERE u.id = #{id}
+    </select>
+
+    <!-- ============================================================
+         3. 动态 SQL：<where> + <if>
+            <where> 会自动去掉首个 AND / OR，避免 "WHERE AND" 语法错
+         ============================================================ -->
+    <select id="selectByCondition" resultMap="BaseResultMap">
+        SELECT * FROM t_user
+        <where>
+            <if test="keyword != null and keyword != ''">
+                AND username LIKE CONCAT('%', #{keyword}, '%')
+            </if>
+            <if test="status != null">
+                AND status = #{status}
+            </if>
+        </where>
+        ORDER BY id DESC
+    </select>
+
+    <!-- ============================================================
+         4. 批量插入：<foreach>
+            separator="," 生成 (..),(..),(..) 的形式
+         ============================================================ -->
+    <insert id="batchInsert">
+        INSERT INTO t_user (username, password, email, phone, status)
+        VALUES
+        <foreach collection="list" item="item" separator=",">
+            (#{item.username}, #{item.password}, #{item.email}, #{item.phone},
+            #{item.status, jdbcType=INTEGER})
+        </foreach>
+    </insert>
+
+</mapper>
