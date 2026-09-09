@@ -4,7 +4,8 @@ rem Type: Windows launcher script (ASCII only - cmd parser safe; see quickstart.
 rem Responsibility: start backend slate-boot (auto-detect JDK17 and Maven); --check = env self-test only
 rem Design doc: docs/design/platform-base/design.md (Chinese docs live in docs/, scripts stay ASCII)
 rem Maintainer: coordinator / agent-fffabc
-setlocal EnableDelayedExpansion
+rem Note: no EnableDelayedExpansion on purpose - "!" chars in user PATH would be eaten
+setlocal
 for %%i in ("%~dp0..") do set "SLATE_ROOT=%%~fi"
 
 echo ============================================
@@ -48,8 +49,12 @@ if defined SLATE_M2 (
 )
 where mvn >nul 2>nul
 if not errorlevel 1 (
-    set "MVN_CMD=mvn"
-    goto mvn_done
+    rem verify the PATH copy actually runs - some machines have a broken or shadowed mvn
+    call mvn -version >nul 2>nul
+    if not errorlevel 1 (
+        set "MVN_CMD=mvn"
+        goto mvn_done
+    )
 )
 if exist "%USERPROFILE%\.zcode\tools\apache-maven-3.9.16\bin\mvn.cmd" (
     rem machine-local convenience dir, exists only on the coordinator PC - harmless elsewhere
@@ -74,10 +79,10 @@ if /i "%~1"=="--check" (
 set "JAVA_HOME=%JDK_HOME%"
 set "Path=%JDK_HOME%\bin;%Path%"
 cd /d "%SLATE_ROOT%\backend"
-echo [build] mvn -pl slate-boot -am package -DskipTests  (first run downloads dependencies)
-call "%MVN_CMD%" -q -pl slate-boot -am package -DskipTests
+echo [build] mvn -B -ntp -pl slate-boot -am package -DskipTests  (first run downloads dependencies)
+call "%MVN_CMD%" -B -ntp -pl slate-boot -am package -DskipTests
 if errorlevel 1 (
-    echo [ERROR] build failed, see maven output above.
+    echo [ERROR] build failed, mvn exit code %errorlevel%. See the maven output above.
     pause
     exit /b 1
 )
