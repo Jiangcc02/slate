@@ -61,6 +61,7 @@
 
 <script setup lang="ts">
 import { reactive, ref } from "vue";
+import { useRouter } from "vue-router";
 import { ApiError } from "@slate/shared";
 import { authApi } from "../api/auth";
 import { saveTokenPair } from "../api/http";
@@ -78,6 +79,7 @@ import { Label } from "@/components/ui/label";
 const form = reactive({ username: "", password: "" });
 const loading = ref(false);
 const errorMessage = ref("");
+const router = useRouter();
 
 async function onSubmit() {
   loading.value = true;
@@ -85,8 +87,9 @@ async function onSubmit() {
   try {
     const tokens = await authApi.login(form.username, form.password);
     saveTokenPair(tokens.accessToken, tokens.refreshToken);
+    router.push({ name: "home" });
   } catch (error) {
-    // 后端 auth 未实现前此处多为网络错误；实现后展示契约错误码（语义冻结，见 api-conventions §4）
+    // ApiError 展示契约错误码（语义冻结，见 api-conventions §4）；其余按网络异常提示
     errorMessage.value =
       error instanceof ApiError
         ? `${error.code}：${error.message}`

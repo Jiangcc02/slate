@@ -5,13 +5,23 @@
 // 维护者: 协调者 / agent-fffabc
 import { createRouter, createWebHistory } from "vue-router";
 import LoginView from "../views/LoginView.vue";
+import HomeView from "../views/HomeView.vue";
+import { getAccessToken } from "../api/http";
 
 const router = createRouter({
   history: createWebHistory(),
   routes: [
     { path: "/", redirect: "/login" },
     { path: "/login", name: "login", component: LoginView, meta: { title: "登录" } },
+    { path: "/home", name: "home", component: HomeView, meta: { title: "首页" } },
   ],
+});
+
+router.beforeEach((to) => {
+  // 未持有 accessToken 禁入首页，避免占位页渲染出无主内容
+  if (to.name === "home" && !getAccessToken()) {
+    return { name: "login" };
+  }
 });
 
 router.afterEach((to) => {

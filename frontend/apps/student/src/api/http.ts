@@ -22,6 +22,10 @@ export function saveTokenPair(accessToken: string, refreshToken: string) {
   localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
 }
 
+export function getAccessToken(): string | undefined {
+  return localStorage.getItem(ACCESS_TOKEN_KEY) ?? undefined;
+}
+
 export function getRefreshToken(): string | undefined {
   return localStorage.getItem(REFRESH_TOKEN_KEY) ?? undefined;
 }
