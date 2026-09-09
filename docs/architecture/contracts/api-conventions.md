@@ -1,6 +1,6 @@
 # API 约定
 
-status: v0.9-draft（内容就绪，随底座首个任务包 PR 验证后冻结 v1；冻结后变更须协调者裁定并在所有 open Issue 广播）
+status: v1.0（冻结，2026-09-09；冻结后变更须协调者裁定并在所有 open Issue 广播）
 
 > 本文件定义全局 API 风格、认证方式、错误模型。所有域与模块的对外接口必须遵循（铁律 L4）。
 
@@ -29,7 +29,7 @@ status: v0.9-draft（内容就绪，随底座首个任务包 PR 验证后冻结 
 ## 2. 认证与鉴权
 
 - 登录态：JWT Bearer——请求头 `Authorization: Bearer <token>`（Spring Security 签发）
-- token claims：用户 ID、角色集、组织 ID、过期时间；过期与刷新策略由底座设计定稿
+- token claims：用户 ID、角色集、组织 ID、过期时间；**过期与刷新已定稿（底座设计 §3.1）：双 token——access 2 小时（接口鉴权）+ refresh 7 天滚动刷新（续期即换新、旧 refresh 即时作废），见 [平台底座设计](../../design/平台底座/design.md)**
 - 权限模型：RBAC 到菜单/按钮级（core §2），接口层注解鉴权
 - 服务间调用（含未来 Agent 运行时）：双身份头 `X-Service-Id`（服务身份）+ `X-On-Behalf-Of`（末端用户），业务侧按两者叠加鉴权与审计（对齐 `agent-boundary.md`）
 
@@ -58,7 +58,7 @@ status: v0.9-draft（内容就绪，随底座首个任务包 PR 验证后冻结 
 ## 6. 幂等与写操作（Agent-ready，铁律 L8）
 
 - 所有写操作（POST / PATCH / DELETE）支持 `Idempotency-Key` 请求头：同 key 重复请求返回首次结果
-- 底座提供统一幂等实现（Redis），业务代码声明式接入；TTL 由底座设计定稿
+- 底座提供统一幂等实现（Redis），业务代码声明式接入；**TTL 已定稿（底座设计 §3.1）：24 小时**
 
 ## 7. 接口版本策略
 
@@ -71,3 +71,4 @@ status: v0.9-draft（内容就绪，随底座首个任务包 PR 验证后冻结 
 |---|---|---|
 | v0-draft | 2026-09-09 | 占位建立 |
 | v0.9-draft | 2026-09-09 | 七节内容成文（路径 / 认证 / 响应 / 错误码 / 分页 / 幂等 / 版本），错误码风格裁定为域前缀字符串；待底座首个任务包验证后冻结 v1 |
+| v1.0 | 2026-09-09 | 冻结：§2 JWT 双 token（2h+7d 滚动）与 §6 幂等 TTL（24h）经底座设计定稿回填；统一响应/traceId/错误码已随工程骨架 PR 代码级验证（slate-common / slate-framework） |

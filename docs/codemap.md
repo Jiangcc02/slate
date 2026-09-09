@@ -41,6 +41,6 @@ grep 是最后手段（命名与前缀固定保证可 grep）。**任务内不�
 
 - 仓库进入代码阶段起点（2026-09-09）：`backend/` 工程骨架 + CI 防线已落（Spring Boot 3 / JDK 17 / Maven 4 module 渐进式，业务域 module 随任务包添加）
 - 蓝图已分域迁移（2026-09-09）：总纲 `K12教育系统.md`（跨域角色/流程/闭环/架构决策）+ `blueprint/` 一域一文件（含教室端专题）
-- 契约层已起草（api-conventions v0.9-draft / 数据所有权实体清单 / 主链骨架 / Agent 边界），悬置参数由底座首个任务包定稿后冻结 v1
+- 契约层：api-conventions **v1.0 冻结** / data-ownership v1.0 / 主链骨架（ID=雪花已定稿）/ Agent 边界——三项悬置参数经底座设计定稿回填（2026-09-09）
 - 双运行时架构已定（2026-09）：Spring Boot 业务单体 = 数字学校本体，Python Agent 运行时 = 大模型的运行与操作环境，边界契约 `contracts/agent-boundary.md`
 - 建设次序：当前阶段只建业务单体（验收标准 Agent-ready），Agent 运行时开发在系统生产稳定运行后启动（core.md §1）
