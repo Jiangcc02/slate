@@ -22,4 +22,11 @@ export default tseslint.config(
       parserOptions: { parser: tseslint.parser },
     },
   },
+  // shadcn-vue 组件（CLI 生成的官方源码）：单词名是 shadcn 模式约定，豁免多词组件名规则
+  {
+    files: ["**/components/ui/**/*.vue"],
+    rules: {
+      "vue/multi-word-component-names": "off",
+    },
+  },
 );
