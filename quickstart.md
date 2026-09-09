@@ -12,12 +12,16 @@ slate = K12 智慧教育平台（教/学/练/测/评全链路，六端）。当�
 
 ## 2. 环境要求
 
+> 这些工具都是**你电脑上的开发环境**（安装到系统或解压到本机任意目录均可），不随项目仓库分发——仓库里不含也不应放任何 JDK / Node 运行时。
+
 | 工具 | 版本 | 检查命令 | 安装指引 |
 |---|---|---|---|
 | JDK | 17+ | `java -version` | https://adoptium.net/temurin/releases/?version=17 |
 | Maven | 3.9+ | `mvn -version` | https://maven.apache.org/download.cgi |
 | Node.js | 20+ | `node -v` | https://nodejs.org/zh-cn/download |
 | pnpm | 9+ | `pnpm -v` | `corepack enable` 或 `npm install -g pnpm` |
+
+解压版（免安装）用户：把 JDK / Maven 解压到本机任意目录，然后设置环境变量 `SLATE_JDK17`、`SLATE_M2` 指向对应解压目录即可，启动脚本会优先使用它们。
 
 ## 3. Windows 一键启动
 
@@ -26,7 +30,7 @@ slate = K12 智慧教育平台（教/学/练/测/评全链路，六端）。当�
 | `scripts\start-backend.cmd` | 启动后端 slate-boot（:8080） | 双击或命令行运行；`--check` 仅自检环境 |
 | `scripts\start-frontend.cmd` | 启动管理端（:5173）+ 学生端（:5174），各占一个窗口 | 同上；首次自动 `pnpm install` |
 
-脚本会自动探测 JDK/Maven（含本机 `~\.zcode\tools\` 工具目录兜底），探测失败会给出安装指引。
+脚本会自动探测**你电脑上**的 JDK/Maven（顺序：`SLATE_JDK17` / `SLATE_M2` 环境变量 → `JAVA_HOME` / PATH → 个别机器的本地约定目录，最后一项仅协调者电脑存在，其他机器探测落空后走正常报错），探测失败会给出安装指引。
 注意两点：脚本输出为**英文**（cmd 批处理对非 ASCII 内容有解析兼容问题，中文说明以本文档为准）；出错或结束时窗口会**停留**（`pause`），报错信息不会被闪退吞掉。
 
 ## 4. 手动启动（非 Windows / 不用脚本）
@@ -53,7 +57,7 @@ pnpm --filter @slate/student dev    # 学生端 http://localhost:5174
 
 | 现象 | 处理 |
 |---|---|
-| 后端脚本提示找不到 JDK 17 | 安装 Temurin 17，或解压到 `%USERPROFILE%\.zcode\tools\jdk-17.0.2` |
+| 后端脚本提示找不到 JDK 17 | 安装 Temurin 17 并配置 `JAVA_HOME`，或解压到本机任意目录后设置 `SLATE_JDK17` 环境变量 |
 | `pnpm install` 报构建脚本被忽略 | 已由 `pnpm-workspace.yaml` 白名单处理（esbuild / vue-demi）；新增依赖触发时按提示审查后加白名单 |
 | 端口占用（8080/5173/5174） | 改 `backend/slate-boot/src/main/resources/application.yml` 的 `server.port`，或各 app 的 `vite.config.ts` |
 | CI 在哪看 | `.github/workflows/`：后端（编译+测试+ArchUnit+L1 头检查）与前端（lint+type-check+build+头检查）两条防线，PR→dev 时自动跑 |

@@ -11,38 +11,54 @@ echo ============================================
 echo   slate backend (slate-boot, port 8080)
 echo ============================================
 
-rem -- detect JDK 17: prefer local tools dir, fallback JAVA_HOME (must be 17+) --
+rem -- detect JDK 17 (installed on YOUR computer, not in this repo) --
+rem order: SLATE_JDK17 env var (any unzip dir) > JAVA_HOME > machine-local convention dir (optional)
 set "JDK_HOME="
-if exist "%USERPROFILE%\.zcode\tools\jdk-17.0.2\bin\java.exe" (
-    set "JDK_HOME=%USERPROFILE%\.zcode\tools\jdk-17.0.2"
-    goto jdk_done
+if defined SLATE_JDK17 (
+    if exist "%SLATE_JDK17%\bin\java.exe" (
+        set "JDK_HOME=%SLATE_JDK17%"
+        goto jdk_done
+    )
 )
 if exist "%JAVA_HOME%\bin\java.exe" (
     set "JDK_HOME=%JAVA_HOME%"
     echo [hint] using system JAVA_HOME, make sure it is JDK 17+
     goto jdk_done
 )
-echo [ERROR] JDK 17 not found.
-echo        Install: https://adoptium.net/temurin/releases/?version=17
-echo        Or unzip it to: %USERPROFILE%\.zcode\tools\jdk-17.0.2
+if exist "%USERPROFILE%\.zcode\tools\jdk-17.0.2\bin\java.exe" (
+    rem machine-local convenience dir, exists only on the coordinator PC - harmless elsewhere
+    set "JDK_HOME=%USERPROFILE%\.zcode\tools\jdk-17.0.2"
+    goto jdk_done
+)
+echo [ERROR] JDK 17 not found on this computer.
+echo        1) Install Temurin 17: https://adoptium.net/temurin/releases/?version=17
+echo        2) Or unzip JDK 17 to any dir on your PC and set env var SLATE_JDK17 to it
 pause
 exit /b 1
 :jdk_done
 
-rem -- detect Maven: PATH first, then local tools dir --
+rem -- detect Maven (installed on YOUR computer, not in this repo) --
+rem order: SLATE_M2 env var (any unzip dir) > PATH > machine-local convention dir (optional)
 set "MVN_CMD="
+if defined SLATE_M2 (
+    if exist "%SLATE_M2%\bin\mvn.cmd" (
+        set "MVN_CMD=%SLATE_M2%\bin\mvn.cmd"
+        goto mvn_done
+    )
+)
 where mvn >nul 2>nul
 if not errorlevel 1 (
     set "MVN_CMD=mvn"
     goto mvn_done
 )
 if exist "%USERPROFILE%\.zcode\tools\apache-maven-3.9.16\bin\mvn.cmd" (
+    rem machine-local convenience dir, exists only on the coordinator PC - harmless elsewhere
     set "MVN_CMD=%USERPROFILE%\.zcode\tools\apache-maven-3.9.16\bin\mvn.cmd"
     goto mvn_done
 )
-echo [ERROR] Maven not found.
-echo        Install: https://maven.apache.org/download.cgi
-echo        Or unzip it to: %USERPROFILE%\.zcode\tools\apache-maven-3.9.16
+echo [ERROR] Maven not found on this computer.
+echo        1) Install Maven and add its bin to PATH: https://maven.apache.org/download.cgi
+echo        2) Or unzip Maven to any dir on your PC and set env var SLATE_M2 to it
 pause
 exit /b 1
 :mvn_done
