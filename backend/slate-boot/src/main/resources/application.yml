@@ -17,8 +17,8 @@ spring:
     init:
       mode: always   # 幂等：表 CREATE IF NOT EXISTS，种子 INSERT IGNORE
       encoding: UTF-8   # SQL 脚本编码（Windows 默认 GBK 会把中文种子写坏）
-      schema-locations: classpath:db/init/01_schema.sql,classpath:db/init/03_schema_org.sql
-      data-locations: classpath:db/init/02_seed.sql,classpath:db/init/04_seed_org.sql
+      schema-locations: classpath:db/init/01_schema.sql,classpath:db/init/03_schema_org.sql,classpath:db/init/05_schema_user.sql
+      data-locations: classpath:db/init/02_seed.sql,classpath:db/init/04_seed_org.sql,classpath:db/init/06_seed_user.sql
   data:
     redis:
       host: ${SLATE_REDIS_HOST:localhost}
@@ -45,6 +45,9 @@ slate:
     secret: ${SLATE_JWT_SECRET:slate-dev-only-secret-key-32bytes!!}
     access-ttl: PT2H    # 双 token 定稿（api-conventions §2）
     refresh-ttl: P7D
+  crypto:
+    # 敏感字段 AES-256-GCM 密钥（32 字节）；生产必须经环境变量注入，此默认值仅本地开发
+    key: ${SLATE_CRYPTO_KEY:0123456789abcdef0123456789abcdef}
 
 logging:
   pattern:
