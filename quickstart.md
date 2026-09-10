@@ -67,6 +67,7 @@ pnpm --filter @slate/student dev    # 学生端 http://localhost:5174
 
 ## 7. 然后去哪
 
+- 新成员先读：[docs/guides/onboarding.md](docs/guides/onboarding.md)（入驻指引——准备、与你的 Agent 协作、正常停顿）
 - 提交代码前：读根目录 `AGENTS.md` → [docs/codemap.md](docs/codemap.md) → [docs/product/core.md](docs/product/core.md) → [docs/architecture/iron-laws.md](docs/architecture/iron-laws.md)
 - 领任务：[docs/guides/git-workflow.md](docs/guides/git-workflow.md)（分支/PR/Issue 硬性约束）
 - 底座设计（当前实现目标）：[docs/design/平台底座/design.md](docs/design/平台底座/design.md)
