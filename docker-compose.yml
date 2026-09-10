@@ -1,6 +1,7 @@
 # 域/模块: 平台底座/本地基础设施
 # 类型: Docker Compose
-# 职责: 本地开发依赖——Redis 7（refresh 白名单/失败锁定/权限缓存）；MySQL 7 用本机已装实例（3306）
+# 职责: 本地开发依赖——Redis 7（refresh 白名单/失败锁定/权限缓存，AOF 持久化：重启不掉登录态）；
+#       MinIO（对象存储，卷持久化）；MySQL 8 用本机已装实例（3306）
 # 设计文档: docs/design/平台底座/design.md
 # 维护者: 协调者 / agent-fffabc
 # 用法：docker compose up -d（仓库根执行）；MinIO 控制台 http://localhost:9001（minioadmin/minioadmin）
@@ -8,8 +9,12 @@ services:
   redis:
     image: redis:7-alpine
     container_name: slate-redis
+    # AOF 持久化：refresh 白名单/上传凭证/幂等键是有状态数据，重启不能丢（丢=全员掉线+锁定失效）
+    command: redis-server --appendonly yes
     ports:
       - "6379:6379"
+    volumes:
+      - slate-redis-data:/data
     restart: unless-stopped
   minio:
     image: minio/minio:latest
@@ -26,4 +31,5 @@ services:
     restart: unless-stopped
 
 volumes:
+  slate-redis-data:
   slate-minio-data:

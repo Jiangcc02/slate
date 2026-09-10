@@ -37,8 +37,9 @@ public class FileController {
     }
 
     @PostMapping("/upload-credentials")
-    public UploadCredentials issue(@Valid @RequestBody UploadCredentials.Request request) {
-        return fileService.issueUploadCredentials(request);
+    public UploadCredentials issue(@Valid @RequestBody UploadCredentials.Request request,
+                                   @AuthenticationPrincipal LoginUser user) {
+        return fileService.issueUploadCredentials(request, user.userId());
     }
 
     @PostMapping
@@ -48,9 +49,11 @@ public class FileController {
         return fileService.register(request, user.userId());
     }
 
+    /** 下载 URL 有属主校验：仅上传者或 file:manage 管理员可取直链 */
     @GetMapping("/{id}/download-url")
-    public Map<String, String> downloadUrl(@PathVariable Long id) {
-        return Map.of("url", fileService.downloadUrl(id));
+    public Map<String, String> downloadUrl(@PathVariable Long id, @AuthenticationPrincipal LoginUser user) {
+        boolean manager = user.hasPermission("file:manage");
+        return Map.of("url", fileService.downloadUrl(id, user.userId(), manager));
     }
 
     @GetMapping

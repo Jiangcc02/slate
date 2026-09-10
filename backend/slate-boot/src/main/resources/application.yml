@@ -1,31 +1,36 @@
 # 域/模块: 平台底座/启动器
 # 类型: 全局配置
-# 职责: slate 单体配置——数据源（createDatabaseIfNotExist + 启动建表/种子，幂等可重复）、Redis、JWT、雪花 ID
+# 职责: slate 单体配置——数据源（createDatabaseIfNotExist + Flyway 版本化迁移）、Redis、JWT、雪花 ID、保留期
 # 设计文档: docs/design/平台底座/design.md
 # 维护者: 协调者 / agent-fffabc
 spring:
   application:
     name: slate
   profiles:
-    active: ${SPRING_PROFILES_ACTIVE:local}   # local 配置不入库（application-local.yml）
+    active: ${SPRING_PROFILES_ACTIVE:local}   # local 配置不入库（application-local.yml）；生产必须显式激活 prod（触发密钥 fail-fast 校验）
   datasource:
     url: ${SLATE_MYSQL_URL:jdbc:mysql://localhost:3306/slate?createDatabaseIfNotExist=true&useUnicode=true&characterEncoding=utf8&serverTimezone=Asia/Shanghai}
     username: ${SLATE_MYSQL_USER:user}
     password: ${SLATE_MYSQL_PASSWORD:}   # 密码不落库：环境变量或 application-local.yml 提供
     driver-class-name: com.mysql.cj.jdbc.Driver
-  sql:
-    init:
-      mode: always   # 幂等：表 CREATE IF NOT EXISTS，种子 INSERT IGNORE
-      encoding: UTF-8   # SQL 脚本编码（Windows 默认 GBK 会把中文种子写坏）
-      schema-locations: classpath:db/init/01_schema.sql,classpath:db/init/03_schema_org.sql,classpath:db/init/05_schema_user.sql,classpath:db/init/07_schema_msg.sql,classpath:db/init/08_schema_file.sql,classpath:db/init/09_schema_sys.sql
-      data-locations: classpath:db/init/02_seed.sql,classpath:db/init/04_seed_org.sql,classpath:db/init/06_seed_user.sql,classpath:db/init/10_seed_sys.sql
+  flyway:
+    locations: classpath:db/migration   # V1=基线（建表+种子）；存量库经 baseline-on-migrate 自动衔接后增量迁移
+    baseline-on-migrate: true
+    baseline-version: 1
   data:
     redis:
       host: ${SLATE_REDIS_HOST:localhost}
       port: ${SLATE_REDIS_PORT:6379}
+  servlet:
+    multipart:
+      max-file-size: 20MB    # 导入 Excel 上限（文件服务走 MinIO 预签名直传，不经 multipart）
+      max-request-size: 25MB
+  lifecycle:
+    timeout-per-shutdown-phase: 30s   # 配合 server.shutdown=graceful：停机时在途请求处理完再退出
 
 server:
   port: 8080
+  shutdown: graceful
 
 management:
   endpoints:
@@ -41,26 +46,38 @@ slate:
   id:
     worker: 1   # 雪花 ID 机器号（0~1023），多实例部署必须唯一
   jwt:
-    # HS256 密钥 ≥32 字节；生产必须经环境变量注入，此默认值仅本地开发
+    # HS256 密钥 ≥32 字节；prod profile 下若仍为本默认值将拒绝启动（ProdSecretsGuard）
     secret: ${SLATE_JWT_SECRET:slate-dev-only-secret-key-32bytes!!}
     access-ttl: PT2H    # 双 token 定稿（api-conventions §2）
     refresh-ttl: P7D
   crypto:
-    # 敏感字段 AES-256-GCM 密钥（32 字节）；生产必须经环境变量注入，此默认值仅本地开发
+    # 敏感字段 AES-256-GCM 密钥（32 字节）；prod profile 下若仍为本默认值将拒绝启动
     key: ${SLATE_CRYPTO_KEY:0123456789abcdef0123456789abcdef}
+    # 加密字段确定性哈希密钥（HMAC-SHA256，等值查询/唯一键列用；与加密密钥分离，泄露不互联）
+    hmac-key: ${SLATE_CRYPTO_HMAC_KEY:slate-dev-only-hmac-key-32bytes!!}
   events:
     webhook-url: ${SLATE_EVENT_WEBHOOK:}   # 领域事件投递目标（空=只落 outbox 不投递，Agent 运行时接入后配置）
   storage:
     endpoint: ${SLATE_MINIO_ENDPOINT:http://localhost:9000}
     access-key: ${SLATE_MINIO_USER:minioadmin}
     secret-key: ${SLATE_MINIO_PASSWORD:minioadmin}
-    bucket: slate
+    bucket: ${SLATE_MINIO_BUCKET:slate}
   files:
     # 类型白名单与大小上限（按 bizType；契约 detail/api/文件服务.md）
     whitelist:
       courseware: { extensions: [pptx, pdf, html], max-size-bytes: 524288000 }
       image: { extensions: [jpg, jpeg, png, webp], max-size-bytes: 10485760 }
       video: { extensions: [mp4], max-size-bytes: 2147483648 }
+    daily-upload-quota: 200   # 每用户每日预签名签发配额（Redis 计数，防灌盘）
+  retention:   # 只增不减数据的保留期（RetentionWorker / FileRetentionWorker 每日执行）
+    enabled: true
+    cron: "0 30 4 * * *"
+    login-log-days: 180
+    operation-log-days: 365
+    read-delivery-days: 90
+    sent-event-days: 30
+    deleted-file-days: 7
+    orphan-file-hours: 48
 
 logging:
   pattern:

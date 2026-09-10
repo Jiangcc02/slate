@@ -28,6 +28,9 @@ public enum SysErrorCode implements ErrorCode {
     /** 重复请求处理中（同 Idempotency-Key 的首次请求尚未完成，稍后重试取首次结果） */
     SYS_005("SYS-005", "重复请求处理中"),
 
+    /** 字典项不存在 */
+    SYS_006("SYS-006", "字典项不存在"),
+
     /** 系统内部错误（未分类异常兜底） */
     SYS_999("SYS-999", "系统内部错误");
 

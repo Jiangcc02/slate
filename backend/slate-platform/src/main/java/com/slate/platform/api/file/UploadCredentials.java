@@ -9,6 +9,7 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.Size;
 
 import java.time.LocalDateTime;
 
@@ -18,9 +19,9 @@ public record UploadCredentials(String objectKey, String uploadUrl, LocalDateTim
     /** 申请预签名：bizType 决定白名单与大小上限 */
     public record Request(
             @NotBlank @Pattern(regexp = "courseware|image|video") String bizType,
-            @NotBlank String fileName,
+            @NotBlank @Size(max = 255) String fileName,
             @NotNull @Positive Long sizeBytes,
-            String contentType) {
+            @Size(max = 128) String contentType) {
     }
 
     /** 上传完成后的元数据登记 */
@@ -28,8 +29,8 @@ public record UploadCredentials(String objectKey, String uploadUrl, LocalDateTim
             @NotBlank String objectKey,
             @NotBlank @Pattern(regexp = "courseware|image|video") String bizType,
             Long bizId,
-            @NotBlank String fileName,
-            String contentType,
+            @NotBlank @Size(max = 255) String fileName,
+            @Size(max = 128) String contentType,
             @NotNull @Positive Long sizeBytes) {
     }
 }

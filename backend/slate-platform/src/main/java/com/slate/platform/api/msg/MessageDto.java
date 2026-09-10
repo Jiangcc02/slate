@@ -16,9 +16,10 @@ import java.util.List;
 public record MessageDto(Long id, String title, String content, String refType, Long refId,
                          LocalDateTime createdAt, LocalDateTime readAt) {
 
-    /** 发送站内信（服务间/域内调用为主）：收件人集合 + 标题 + 正文 + 跳转引用 */
+    /** 发送站内信（服务间/域内调用为主）：收件人集合 + 标题 + 正文 + 跳转引用；
+     *  大范围触达用公告（announcement），定向消息收件人上限 500，防单请求无界扇出 */
     public record SendRequest(
-            @NotEmpty List<Long> receiverIds,
+            @NotEmpty @Size(max = 500) List<Long> receiverIds,
             @NotBlank @Size(max = 128) String title,
             @NotBlank @Size(max = 2000) String content,
             @Size(max = 32) String refType,

@@ -7,18 +7,23 @@ package com.slate.platform.internal.auth.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.slate.common.error.BusinessException;
+import com.slate.framework.id.SnowflakeIdGenerator;
+import com.slate.framework.redis.RedisKeys;
 import com.slate.platform.api.auth.PermissionNode;
 import com.slate.platform.api.auth.RoleDto;
+import com.slate.platform.internal.auth.entity.Account;
 import com.slate.platform.internal.auth.entity.AccountRole;
 import com.slate.platform.internal.auth.entity.Permission;
 import com.slate.platform.internal.auth.entity.Role;
 import com.slate.platform.internal.auth.entity.RolePermission;
 import com.slate.platform.internal.auth.error.AuthErrorCode;
+import com.slate.platform.internal.auth.mapper.AccountMapper;
 import com.slate.platform.internal.auth.mapper.AccountRoleMapper;
 import com.slate.platform.internal.auth.mapper.PermissionMapper;
 import com.slate.platform.internal.auth.mapper.RoleMapper;
 import com.slate.platform.internal.auth.mapper.RolePermissionMapper;
-import com.slate.framework.id.SnowflakeIdGenerator;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,6 +38,7 @@ import java.util.Map;
 @Service
 public class RbacService {
 
+    private static final Logger log = LoggerFactory.getLogger(RbacService.class);
     private static final String PERM_KEY_PREFIX = "perm:";
     private static final Duration PERM_TTL = Duration.ofMinutes(30);
 
@@ -40,6 +46,7 @@ public class RbacService {
     private final PermissionMapper permissionMapper;
     private final RolePermissionMapper rolePermissionMapper;
     private final AccountRoleMapper accountRoleMapper;
+    private final AccountMapper accountMapper;
     private final SnowflakeIdGenerator idGenerator;
     private final StringRedisTemplate redis;
 
@@ -47,25 +54,37 @@ public class RbacService {
                        PermissionMapper permissionMapper,
                        RolePermissionMapper rolePermissionMapper,
                        AccountRoleMapper accountRoleMapper,
+                       AccountMapper accountMapper,
                        SnowflakeIdGenerator idGenerator,
                        StringRedisTemplate redis) {
         this.roleMapper = roleMapper;
         this.permissionMapper = permissionMapper;
         this.rolePermissionMapper = rolePermissionMapper;
         this.accountRoleMapper = accountRoleMapper;
+        this.accountMapper = accountMapper;
         this.idGenerator = idGenerator;
         this.redis = redis;
     }
 
-    public record AccountGrants(List<String> roleCodes, List<String> permissionCodes) {
+    /** @param accountStatus 账号状态随权限缓存下发——禁用/锁定账号在缓存 TTL 内即时拒绝，不再依赖 access token 自然过期 */
+    public record AccountGrants(List<String> roleCodes, List<String> permissionCodes, String accountStatus) {
     }
 
-    /** 账号的角色码 + 权限码（缓存 perm:{accountId}，见 detail/data.md §4；键值格式 roles|perms 逗号分隔） */
+    /**
+     * 账号的角色码 + 权限码 + 账号状态（缓存 perm:{accountId}，见 detail/data.md §4；
+     * 键值格式 roles|perms|status 逗号分隔，旧格式（无 status）按 active 容错解析，TTL 内自愈）。
+     * Redis 故障时降级直查 DB（性能降级、功能不降级）。
+     */
     public AccountGrants loadGrants(Long accountId) {
-        String cached = redis.opsForValue().get(PERM_KEY_PREFIX + accountId);
-        if (cached != null) {
-            String[] parts = cached.split("\\|", -1);
-            return new AccountGrants(splitList(parts[0]), splitList(parts[1]));
+        try {
+            String cached = redis.opsForValue().get(PERM_KEY_PREFIX + accountId);
+            if (cached != null) {
+                String[] parts = cached.split("\\|", -1);
+                return new AccountGrants(splitList(parts[0]), splitList(parts[1]),
+                        parts.length > 2 ? parts[2] : "active");
+            }
+        } catch (Exception e) {
+            log.warn("权限缓存读取失败，降级直查 DB: accountId={}, error={}", accountId, e.getMessage());
         }
         List<Long> roleIds = accountRoleMapper.selectList(
                         new LambdaQueryWrapper<AccountRole>().eq(AccountRole::getAccountId, accountId))
@@ -82,11 +101,17 @@ public class RbacService {
                 })
                 .filter(code -> code != null)
                 .toList();
-        AccountGrants grants = new AccountGrants(roleCodes, permissionCodes);
-        redis.opsForValue().set(
-                PERM_KEY_PREFIX + accountId,
-                String.join(",", roleCodes) + "|" + String.join(",", permissionCodes),
-                PERM_TTL);
+        Account account = accountMapper.selectById(accountId);
+        String status = account == null ? "disabled" : account.getStatus();
+        AccountGrants grants = new AccountGrants(roleCodes, permissionCodes, status);
+        try {
+            redis.opsForValue().set(
+                    PERM_KEY_PREFIX + accountId,
+                    String.join(",", roleCodes) + "|" + String.join(",", permissionCodes) + "|" + status,
+                    PERM_TTL);
+        } catch (Exception e) {
+            log.warn("权限缓存写入失败（降级运行，靠 TTL 兜底）: accountId={}, error={}", accountId, e.getMessage());
+        }
         return grants;
     }
 
@@ -94,10 +119,10 @@ public class RbacService {
         return joined.isBlank() ? List.of() : List.of(joined.split(","));
     }
 
-    /** 授权/角色变更后失效全部权限缓存（幂等，可重复调用） */
+    /** 授权/角色变更后失效全部权限缓存（幂等，可重复调用；SCAN 替代 KEYS） */
     public void evictAllGrants() {
-        var keys = redis.keys(PERM_KEY_PREFIX + "*");
-        if (keys != null && !keys.isEmpty()) {
+        List<String> keys = RedisKeys.scan(redis, PERM_KEY_PREFIX + "*", 10_000);
+        if (!keys.isEmpty()) {
             redis.delete(keys);
         }
     }

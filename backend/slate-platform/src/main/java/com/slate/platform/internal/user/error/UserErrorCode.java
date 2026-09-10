@@ -12,10 +12,12 @@ public enum UserErrorCode implements ErrorCode {
 
     USER_001("USER-001", "用户档案不存在"),
     USER_002("USER-002", "手机号已被其他账号占用"),
-    USER_003("USER-003", "学籍号不存在或与姓名不匹配"),
+    USER_003("USER-003", "学生档案不存在或非学生"),
     USER_004("USER-004", "绑定记录不存在或已解绑"),
     USER_005("USER-005", "导入文件格式或模板错误"),
-    USER_006("USER-006", "导入行校验失败");
+    USER_006("USER-006", "导入行校验失败"),
+    USER_007("USER-007", "学籍号已被其他学生占用"),
+    USER_008("USER-008", "登录名已被占用");
 
     private final String code;
     private final String message;

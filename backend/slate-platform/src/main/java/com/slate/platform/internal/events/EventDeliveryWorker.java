@@ -11,10 +11,13 @@ import com.slate.platform.internal.events.mapper.DomainEventMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.http.client.ClientHttpRequestFactoryBuilder;
+import org.springframework.boot.http.client.ClientHttpRequestFactorySettings;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -35,7 +38,13 @@ public class EventDeliveryWorker {
                                RestClient.Builder restClientBuilder) {
         this.domainEventMapper = domainEventMapper;
         this.webhookUrl = webhookUrl == null ? "" : webhookUrl.trim();
-        this.restClient = restClientBuilder.build();
+        // 显式超时：无超时的一次网络挂起会占死调度线程，令全部 @Scheduled 任务停摆
+        this.restClient = restClientBuilder
+                .requestFactory(ClientHttpRequestFactoryBuilder.detect()
+                        .build(ClientHttpRequestFactorySettings.defaults()
+                                .withConnectTimeout(Duration.ofSeconds(3))
+                                .withReadTimeout(Duration.ofSeconds(10))))
+                .build();
     }
 
     @Scheduled(fixedDelay = 5000)

@@ -23,6 +23,8 @@ public class SnowflakeIdGenerator {
     private static final long SEQUENCE_MASK = (1L << SEQUENCE_BITS) - 1;
     private static final long WORKER_SHIFT = SEQUENCE_BITS;
     private static final long TIMESTAMP_SHIFT = SEQUENCE_BITS + WORKER_BITS;
+    /** 时钟回拨容忍窗口：NTP 微调（毫秒~秒级）在此窗口内等待追平而非拒绝服务；超过仍拒绝（保 ID 不重复） */
+    private static final long ROLLBACK_TOLERANCE_MS = 5_000L;
 
     private final long workerId;
     private long sequence = 0L;
@@ -38,7 +40,7 @@ public class SnowflakeIdGenerator {
     public synchronized long nextId() {
         long timestamp = System.currentTimeMillis();
         if (timestamp < lastTimestamp) {
-            throw new IllegalStateException("系统时钟回拨，拒绝生成 ID（回拨 %d ms）".formatted(lastTimestamp - timestamp));
+            timestamp = waitUntil(lastTimestamp);
         }
         if (timestamp == lastTimestamp) {
             sequence = (sequence + 1) & SEQUENCE_MASK;
@@ -52,6 +54,26 @@ public class SnowflakeIdGenerator {
         return ((timestamp - EPOCH) << TIMESTAMP_SHIFT)
                 | (workerId << WORKER_SHIFT)
                 | sequence;
+    }
+
+    /** 小幅回拨：阻塞等待时钟追平上次发号时刻（容忍窗口内）；超窗口或被中断则拒绝发号 */
+    private long waitUntil(long target) {
+        long deadline = System.currentTimeMillis() + ROLLBACK_TOLERANCE_MS;
+        long current = System.currentTimeMillis();
+        while (current < target) {
+            if (current > deadline) {
+                throw new IllegalStateException("系统时钟回拨超过容忍窗口（%d ms），拒绝生成 ID"
+                        .formatted(target - current));
+            }
+            try {
+                Thread.sleep(1);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new IllegalStateException("时钟回拨等待被中断，拒绝生成 ID", e);
+            }
+            current = System.currentTimeMillis();
+        }
+        return current;
     }
 
     private long tilNextMillis(long lastTimestamp) {

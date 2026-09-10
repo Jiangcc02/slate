@@ -10,7 +10,7 @@ import com.slate.common.error.ErrorCode;
 /** 文件服务错误码（域码 FILE，属主=平台底座） */
 public enum FileErrorCode implements ErrorCode {
 
-    FILE_001("FILE-001", "文件不存在或已删除"),
+    FILE_001("FILE-001", "文件不存在、已删除或无权访问"),
     FILE_002("FILE-002", "文件类型不在白名单"),
     FILE_003("FILE-003", "文件大小超限或配额用尽"),
     FILE_004("FILE-004", "文件被业务引用中，禁止删除"),

@@ -20,6 +20,7 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -30,21 +31,31 @@ import java.util.List;
 public class UserImportService {
 
     private static final Logger log = LoggerFactory.getLogger(UserImportService.class);
+    /** 单次导入行数上限：同步导入的耗时与事务规模保护（异步任务化随规模需求升级） */
+    private static final int MAX_ROWS = 2000;
 
     private final UserService userService;
     private final OrgUnitMapper orgUnitMapper;
     private final MemberService memberService;
+    private final TransactionTemplate transactionTemplate;
 
-    public UserImportService(UserService userService, OrgUnitMapper orgUnitMapper, MemberService memberService) {
+    public UserImportService(UserService userService, OrgUnitMapper orgUnitMapper, MemberService memberService,
+                             TransactionTemplate transactionTemplate) {
         this.userService = userService;
         this.orgUnitMapper = orgUnitMapper;
         this.memberService = memberService;
+        this.transactionTemplate = transactionTemplate;
     }
 
     public ImportResult importStudents(InputStream excel, String academicYear) {
         List<ImportResult.RowResult> rows = new ArrayList<>();
         try (Workbook workbook = new XSSFWorkbook(excel)) {
             Sheet sheet = workbook.getSheetAt(0);
+            if (sheet.getLastRowNum() > MAX_ROWS) {
+                throw new com.slate.common.error.BusinessException(
+                        com.slate.platform.internal.user.error.UserErrorCode.USER_005,
+                        "单次导入不超过 " + MAX_ROWS + " 行");
+            }
             for (int i = 1; i <= sheet.getLastRowNum(); i++) {   // 0=表头
                 Row row = sheet.getRow(i);
                 if (row == null) {
@@ -52,6 +63,8 @@ public class UserImportService {
                 }
                 rows.add(importRow(i + 1, row, academicYear));
             }
+        } catch (com.slate.common.error.BusinessException e) {
+            throw e;
         } catch (Exception e) {
             log.warn("导入解析失败: {}", e.getMessage());
             throw new com.slate.common.error.BusinessException(
@@ -61,25 +74,34 @@ public class UserImportService {
         return new ImportResult(rows.size(), rows.size() - failed, failed, rows);
     }
 
+    /** 单行 = 一个事务：建档+开户+入班原子成功或整体回滚（不留半行孤儿数据）；
+     *  重放同一文件时学籍号哈希唯一键使重复行报 USER-007，不产生重复建档（导入幂等） */
     private ImportResult.RowResult importRow(int rowNo, Row row, String academicYear) {
         String name = text(row, 0);
         try {
-            if (name == null || name.isBlank()) {
-                throw rowError("姓名为空");
-            }
-            String studentNo = text(row, 1);
-            String gradeEntry = text(row, 2);
-            String gradeName = text(row, 3);
-            String className = text(row, 4);
-            Long classId = resolveClass(gradeName, className);
-            UserDto created = userService.create(new UserDto.CreateRequest(
-                    "STUDENT", name, null, studentNo, gradeEntry, null, null, null, null));
-            memberService.enroll(classId, List.of(created.id()), academicYear);
-            return new ImportResult.RowResult(rowNo, name, true, "ok:" + created.username());
+            ImportResult.RowResult result = transactionTemplate.execute(tx ->
+                    doImportRow(rowNo, row, academicYear));
+            return result;
         } catch (Exception e) {
             String message = e.getMessage() == null ? e.getClass().getSimpleName() : e.getMessage();
             return new ImportResult.RowResult(rowNo, name, false, message);
         }
+    }
+
+    private ImportResult.RowResult doImportRow(int rowNo, Row row, String academicYear) {
+        String name = text(row, 0);
+        if (name == null || name.isBlank()) {
+            throw rowError("姓名为空");
+        }
+        String studentNo = text(row, 1);
+        String gradeEntry = text(row, 2);
+        String gradeName = text(row, 3);
+        String className = text(row, 4);
+        Long classId = resolveClass(gradeName, className);
+        UserDto created = userService.create(new UserDto.CreateRequest(
+                "STUDENT", name, null, studentNo, gradeEntry, null, null, null, null));
+        memberService.enroll(classId, List.of(created.id()), academicYear);
+        return new ImportResult.RowResult(rowNo, name, true, "ok:" + created.username());
     }
 
     private Long resolveClass(String gradeName, String className) {

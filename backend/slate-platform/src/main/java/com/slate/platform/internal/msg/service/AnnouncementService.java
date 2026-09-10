@@ -6,7 +6,10 @@
 package com.slate.platform.internal.msg.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.slate.common.error.BusinessException;
+import com.slate.common.result.PageQuery;
+import com.slate.common.result.PageResult;
 import com.slate.framework.id.SnowflakeIdGenerator;
 import com.slate.platform.api.msg.AnnouncementDto;
 import com.slate.platform.internal.msg.entity.Announcement;
@@ -33,13 +36,17 @@ public class AnnouncementService {
         this.idGenerator = idGenerator;
     }
 
-    public List<AnnouncementDto> list() {
-        return announcementMapper.selectList(new LambdaQueryWrapper<Announcement>()
+    /** 已发布公告列表（新→旧）：SQL 分页（历史公告随时间无界增长） */
+    public PageResult<AnnouncementDto> list(PageQuery query) {
+        Page<Announcement> page = announcementMapper.selectPage(
+                new Page<>(query.getPage(), query.limitedSize()),
+                new LambdaQueryWrapper<Announcement>()
                         .eq(Announcement::getStatus, Announcement.PUBLISHED)
-                        .orderByDesc(Announcement::getId))
-                .stream().map(a -> new AnnouncementDto(a.getId(), a.getTitle(), a.getContent(),
-                        a.getScopeType(), a.getScopeOrgId(), a.getStatus(), a.getCreatedAt()))
+                        .orderByDesc(Announcement::getId));
+        List<AnnouncementDto> dtos = page.getRecords().stream()
+                .map(this::toDto)
                 .toList();
+        return new PageResult<>(dtos, page.getTotal(), query.getPage(), query.limitedSize());
     }
 
     public AnnouncementDto create(AnnouncementDto.CreateRequest request, Long publisherUserId) {

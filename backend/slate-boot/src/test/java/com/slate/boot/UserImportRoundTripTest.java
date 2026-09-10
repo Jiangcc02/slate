@@ -52,8 +52,10 @@ class UserImportRoundTripTest {
         assertTrue(result.rows().stream().anyMatch(r -> !r.success() && "导入辛".equals(r.studentName())));
     }
 
-    /** 模板列：姓名 | 学籍号 | 入学届 | 年级名 | 班级名；种子组织：一年级/一(1)班 存在、九年级 不存在 */
+    /** 模板列：姓名 | 学籍号 | 入学届 | 年级名 | 班级名；种子组织：一年级/一(1)班 存在、九年级 不存在。
+     *  学籍号带运行时间戳：学籍号哈希唯一键会正确拦截重复导入（幂等去重），测试数据须每次运行唯一 */
     private byte[] buildExcel() throws Exception {
+        String runTag = String.valueOf(System.currentTimeMillis());
         try (Workbook workbook = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             Sheet sheet = workbook.createSheet("students");
             Row header = sheet.createRow(0);
@@ -63,9 +65,9 @@ class UserImportRoundTripTest {
             header.createCell(3).setCellValue("年级名");
             header.createCell(4).setCellValue("班级名");
             String[][] rows = {
-                    {"导入庚", "S2026001", "2026", "一年级", "一(1)班"},
-                    {"导入辛", "S2026002", "2026", "九年级", "九(9)班"},
-                    {"导入壬", "S2026003", "2026", "一年级", "一(1)班"},
+                    {"导入庚", "S" + runTag + "01", "2026", "一年级", "一(1)班"},
+                    {"导入辛", "S" + runTag + "02", "2026", "九年级", "九(9)班"},
+                    {"导入壬", "S" + runTag + "03", "2026", "一年级", "一(1)班"},
             };
             for (int i = 0; i < rows.length; i++) {
                 Row row = sheet.createRow(i + 1);

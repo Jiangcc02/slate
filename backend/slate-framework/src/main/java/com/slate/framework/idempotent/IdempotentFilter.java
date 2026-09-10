@@ -26,12 +26,17 @@ import java.time.Duration;
 /**
  * 幂等过滤器：POST/PATCH/DELETE + Idempotency-Key 头 → Redis 抢占；
  * 占到的执行并缓存响应（含状态码/类型/体），未占到的轮询取首次结果，超时返回 409 SYS-005。
+ * 缓存键按登录账号隔离（JwtAuthenticationFilter 注入 ACCOUNT_ATTR）——防止跨用户同键互取对方响应。
+ * 5xx 响应不缓存：视为瞬时失败，删除占位让同键重试重新执行。
  */
 @Component
 public class IdempotentFilter extends OncePerRequestFilter {
 
     public static final String HEADER = "Idempotency-Key";
-    private static final Duration TTL = Duration.ofHours(24);   // 契约定稿（api-conventions §6）
+    /** 认证后由 JwtAuthenticationFilter 写入请求属性：幂等键按账号隔离 */
+    public static final String ACCOUNT_ATTR = "slate.idempotent.accountId";
+    private static final Duration TTL = Duration.ofHours(24);            // 契约定稿（api-conventions §6）
+    private static final Duration PROCESSING_TTL = Duration.ofMinutes(5); // 占位只需覆盖单请求时长；进程崩溃后 5min 内自动放行
     private static final Logger log = LoggerFactory.getLogger(IdempotentFilter.class);
 
     private final StringRedisTemplate redis;
@@ -50,19 +55,21 @@ public class IdempotentFilter extends OncePerRequestFilter {
         boolean writeMethod = HttpMethod.POST.matches(request.getMethod())
                 || HttpMethod.PATCH.matches(request.getMethod())
                 || HttpMethod.DELETE.matches(request.getMethod());
-        if (key == null || key.isBlank() || !writeMethod || request.getRequestURI().contains("/auth/login")) {
+        Object accountId = request.getAttribute(ACCOUNT_ATTR);
+        if (key == null || key.isBlank() || !writeMethod || !(accountId instanceof Long id)) {
+            // 未登录（含 /auth/login）不走幂等占位：幂等键按账号隔离，无账号即无隔离域
             filterChain.doFilter(request, response);
             return;
         }
-        String cacheKey = "idem:web:" + key;
+        String cacheKey = "idem:web:" + id + ":" + key;
         String cached = redis.opsForValue().get(cacheKey);
         if (cached != null) {
             replay(response, cached);
             return;
         }
         // 先写占位（空标记），业务完成后由本过滤器回填响应体；占位存在但无响应体=处理中
-        String marker = "idem:processing:" + key;
-        Boolean acquired = redis.opsForValue().setIfAbsent(marker, "1", TTL);
+        String marker = "idem:processing:" + id + ":" + key;
+        Boolean acquired = redis.opsForValue().setIfAbsent(marker, "1", PROCESSING_TTL);
         if (Boolean.FALSE.equals(acquired)) {
             waitForFirstResult(cacheKey, marker, request, response);
             return;
@@ -71,10 +78,16 @@ public class IdempotentFilter extends OncePerRequestFilter {
         try {
             filterChain.doFilter(request, capture);
         } finally {
-            String body = capture.getCapturedBodyAsString();
-            String entry = capture.getCapturedStatus() + "|" + capture.getContentType() + "|" + body;
-            redis.opsForValue().set(cacheKey, entry, TTL);
-            redis.delete(marker);
+            int status = capture.getCapturedStatus();
+            if (status >= 500) {
+                // 服务端错误不缓存为"首次结果"：删占位放行同键重试
+                redis.delete(marker);
+            } else {
+                String body = capture.getCapturedBodyAsString();
+                String entry = status + "|" + capture.getContentType() + "|" + body;
+                redis.opsForValue().set(cacheKey, entry, TTL);
+                redis.delete(marker);
+            }
             capture.commitCaptured();
         }
     }

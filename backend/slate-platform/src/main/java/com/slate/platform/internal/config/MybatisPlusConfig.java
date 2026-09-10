@@ -10,10 +10,12 @@ import com.baomidou.mybatisplus.extension.plugins.MybatisPlusInterceptor;
 import com.baomidou.mybatisplus.extension.plugins.inner.PaginationInnerInterceptor;
 import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.context.annotation.Bean;
+import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.annotation.EnableScheduling;
 
 @Configuration
+@EnableConfigurationProperties(RetentionProperties.class)   // 保留期清理任务配置
 @EnableScheduling   // 领域事件投递器等定时任务
 @MapperScan({"com.slate.platform.internal.auth.mapper", "com.slate.platform.internal.audit.mapper",
         "com.slate.platform.internal.events.mapper", "com.slate.platform.internal.org.mapper",

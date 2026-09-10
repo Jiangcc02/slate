@@ -5,6 +5,7 @@
 // 维护者: 协调者 / agent-fffabc
 package com.slate.platform.internal.auth.security;
 
+import com.slate.framework.idempotent.IdempotentFilter;
 import com.slate.platform.internal.auth.service.RbacService;
 import com.slate.platform.internal.auth.service.TokenService;
 import jakarta.servlet.FilterChain;
@@ -41,15 +42,19 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             LoginUser user = tokenService.parseAccessToken(header.substring(7));
             if (user != null) {
                 RbacService.AccountGrants grants = rbacService.loadGrants(user.accountId());
-                LoginUser enriched = new LoginUser(
-                        user.accountId(), user.userId(), user.username(),
-                        grants.roleCodes(), grants.permissionCodes());
-                List<SimpleGrantedAuthority> authorities = grants.permissionCodes().stream()
-                        .map(SimpleGrantedAuthority::new)
-                        .toList();
-                UsernamePasswordAuthenticationToken authentication =
-                        new UsernamePasswordAuthenticationToken(enriched, null, authorities);
-                SecurityContextHolder.getContext().setAuthentication(authentication);
+                // 账号状态随权限缓存下发：禁用/锁定账号即时 401，不再等 access token 自然过期（≤2h 窗口）
+                if ("active".equals(grants.accountStatus())) {
+                    LoginUser enriched = new LoginUser(
+                            user.accountId(), user.userId(), user.username(),
+                            grants.roleCodes(), grants.permissionCodes());
+                    List<SimpleGrantedAuthority> authorities = grants.permissionCodes().stream()
+                            .map(SimpleGrantedAuthority::new)
+                            .toList();
+                    UsernamePasswordAuthenticationToken authentication =
+                            new UsernamePasswordAuthenticationToken(enriched, null, authorities);
+                    SecurityContextHolder.getContext().setAuthentication(authentication);
+                    request.setAttribute(IdempotentFilter.ACCOUNT_ATTR, user.accountId());
+                }
             }
         }
         filterChain.doFilter(request, response);

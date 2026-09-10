@@ -8,8 +8,9 @@ slate = K12 智慧教育平台（教/学/练/测/评全链路，六端）。当�
 
 - 后端：`backend/`，Spring Boot 3 模块化单体（Maven 多 module，JDK 17）
 - 前端：`frontend/`，Vue 3 pnpm monorepo（管理端 + 学生端，shadcn-vue / Tailwind CSS v4）
-- 基础设施（本地开发必需）：MySQL 8（:3306，库 `slate` 由应用启动时自动创建并建表/种子）+ Redis（:6379）+ MinIO（:9000 API / :9001 控制台）——Redis/MinIO 在仓库根 `docker compose up -d` 一键起；MySQL 建议本机安装或自行容器化
+- 基础设施（本地开发必需）：MySQL 8（:3306，库 `slate` 由应用启动时经 Flyway 自动创建并跑版本化迁移建表/种子）+ Redis（:6379）+ MinIO（:9000 API / :9001 控制台）——Redis/MinIO 在仓库根 `docker compose up -d` 一键起；MySQL 建议本机安装或自行容器化
 - MySQL 凭证（不入仓库，每人自备）：把 `backend/slate-boot/src/main/resources/application-local.yml.example` 复制为同目录 `application-local.yml` 并填入本机账号密码；或设环境变量 `SLATE_MYSQL_USER` / `SLATE_MYSQL_PASSWORD`，两种方式任选其一
+- 密钥类配置（JWT / 字段加密 / 字段哈希 / MinIO）本地开发用仓库内默认值即可；**生产部署必须** `SPRING_PROFILES_ACTIVE=prod` 并注入 `SLATE_JWT_SECRET`、`SLATE_CRYPTO_KEY`、`SLATE_CRYPTO_HMAC_KEY`、`SLATE_MINIO_USER`、`SLATE_MINIO_PASSWORD`——prod profile 下任一仍为开发默认值会拒绝启动（fail-fast 守卫）
 - 未就绪：外部通知渠道（邮件/短信/微信仅预留接口）、WebSocket 实时推送（随三期随堂测引入）
 
 ## 2. 环境要求
@@ -51,7 +52,7 @@ pnpm --filter @slate/student dev    # 学生端 http://localhost:5174
 
 ## 5. 验证跑通了
 
-1. 后端健康检查：`curl http://localhost:8080/actuator/health` → `{"status":"UP"}`（首次启动自动建库建表+种子）
+1. 后端健康检查：`curl http://localhost:8080/actuator/health` → `{"status":"UP"}`（首次启动自动建库+Flyway 迁移建表种子；存量开发库自动 baseline 衔接）
 2. 登录闭环：`curl -X POST http://localhost:8080/api/v1/auth/login -H "Content-Type: application/json" -d '{"username":"admin","password":"admin123"}'` → 返回双 token（种子账号：admin/admin123 管理员、teacher01/teacher02 密码 teacher123 教师）
 3. 打开 http://localhost:5173 与 http://localhost:5174，用 **admin / admin123** 登录（登录成功即通；页面级的登录后首页随后续任务包交付）
 

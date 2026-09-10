@@ -28,15 +28,14 @@ public class TraceIdFilter extends OncePerRequestFilter {
 
     public static final String HEADER = "X-Trace-Id";
     public static final String MDC_KEY = "traceId";
+    /** 上游传入 traceId 的清洗规则：仅字母数字下划线连字符，最长 64——防日志注入与超大值占内存 */
+    private static final int MAX_LENGTH = 64;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
                                     HttpServletResponse response,
                                     FilterChain filterChain) throws ServletException, IOException {
-        String traceId = request.getHeader(HEADER);
-        if (traceId == null || traceId.isBlank()) {
-            traceId = newTraceId();
-        }
+        String traceId = sanitize(request.getHeader(HEADER));
         MDC.put(MDC_KEY, traceId);
         response.setHeader(HEADER, traceId);
         try {
@@ -44,6 +43,17 @@ public class TraceIdFilter extends OncePerRequestFilter {
         } finally {
             MDC.remove(MDC_KEY);
         }
+    }
+
+    private String sanitize(String header) {
+        if (header == null || header.isBlank()) {
+            return newTraceId();
+        }
+        String cleaned = header.replaceAll("[^A-Za-z0-9_-]", "");
+        if (cleaned.isBlank()) {
+            return newTraceId();
+        }
+        return cleaned.length() > MAX_LENGTH ? cleaned.substring(0, MAX_LENGTH) : cleaned;
     }
 
     private String newTraceId() {

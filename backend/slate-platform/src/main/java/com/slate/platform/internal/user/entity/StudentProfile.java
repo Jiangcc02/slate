@@ -17,6 +17,7 @@ public class StudentProfile {
     @TableId(type = IdType.INPUT)
     private Long userId;
     private String studentNo;   // AES-GCM 加密文本
+    private String studentNoHash;   // HMAC-SHA256 确定性哈希（等值查询/唯一键 uk_sp_no_hash）
     private String gradeEntry;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
@@ -25,6 +26,8 @@ public class StudentProfile {
     public void setUserId(Long userId) { this.userId = userId; }
     public String getStudentNo() { return studentNo; }
     public void setStudentNo(String studentNo) { this.studentNo = studentNo; }
+    public String getStudentNoHash() { return studentNoHash; }
+    public void setStudentNoHash(String studentNoHash) { this.studentNoHash = studentNoHash; }
     public String getGradeEntry() { return gradeEntry; }
     public void setGradeEntry(String gradeEntry) { this.gradeEntry = gradeEntry; }
     public LocalDateTime getCreatedAt() { return createdAt; }

@@ -5,6 +5,7 @@
 // 维护者: 协调者 / agent-fffabc
 package com.slate.platform.internal.auth.service;
 
+import com.slate.framework.redis.RedisKeys;
 import com.slate.platform.api.auth.TokenPair;
 import com.slate.platform.internal.auth.security.LoginUser;
 import io.jsonwebtoken.Claims;
@@ -96,27 +97,27 @@ public class TokenService {
     }
 
     /** 校验并消费 refresh token：白名单内的 jti 才有效，消费即旋转（旧 jti 作废）；
-     *  返回 accountId 供调用方重查最新角色后另行签发；无效/已撤销返回 null */
+     *  GETDEL 原子取删，并发重放同一 refresh 至多一方成功；无效/已撤销返回 null */
     public Long consumeRefresh(String refreshToken) {
         try {
             Claims claims = Jwts.parser().verifyWith(key).build()
                     .parseSignedClaims(refreshToken).getPayload();
             Long accountId = Long.valueOf(claims.getSubject());
             String whitelistKey = whitelistKey(accountId, claims.getId());
-            if (Boolean.TRUE != redis.hasKey(whitelistKey)) {
+            String consumed = redis.opsForValue().getAndDelete(whitelistKey);
+            if (consumed == null) {
                 return null;   // 已撤销/已旋转/已登出
             }
-            redis.delete(whitelistKey);
             return accountId;
         } catch (JwtException | IllegalArgumentException e) {
             return null;
         }
     }
 
-    /** 撤销某账号全部 refresh（改密/禁用场景：scan 前缀删除） */
+    /** 撤销某账号全部 refresh（改密/禁用场景：SCAN 前缀收集后删除，禁用 KEYS 阻塞命令） */
     public void revokeAll(Long accountId) {
-        var keys = redis.keys(REFRESH_KEY_PREFIX + accountId + ":*");
-        if (keys != null && !keys.isEmpty()) {
+        List<String> keys = RedisKeys.scan(redis, REFRESH_KEY_PREFIX + accountId + ":*", 1000);
+        if (!keys.isEmpty()) {
             redis.delete(keys);
         }
     }

@@ -58,22 +58,39 @@ erDiagram
 
 - **account**：username 唯一；password_hash；status（active/locked/disabled）；user_id；last_login_at
 - **org_unit**：type（campus/section/grade/class 五级枚举）；parent_id；path（物化路径 `/{id}/{id}/…`，树查询走 path 前缀）；学年学期字段只存在于 grade 以下的动态编班关系，不在树上
-- **class_membership**：class_id + student_id + 学年学期；status（在籍/转出/毕业）；同一学生同学年同学级唯一在籍
+- **class_membership**：class_id + student_id + 学年学期；status（在籍/转出/毕业）；同一学生同学年同学级唯一在籍——`(student_id, academic_year, status)` 唯一键兜底（并发/重复导入不再仅靠业务查后插）
 - **teaching_assignment**：teacher_id + class_id + course_id（引用课程域 ID，不复制字段）+ 学年学期 + 科目
 - **guardian_student**：guardian_id + student_id；relation（父/母/其他监护人）；is_primary；status（pending/confirmed/unbound）——**confirmed 才允许家校域触达**（合规：监护人同意）
 - **permission**：code 唯一（如 `course:lesson:publish` 按钮级）；type（menu/button/api）；parent_id（树）
-- **file_object**：bucket + object_key 唯一；biz_type + biz_id（业务引用，引用中禁删）；visibility（private/public_signed）
-- **operation_log**：account_id；on_behalf_of（双身份的末端用户，可空）；service_id（服务调用方可空）；action；target；params_digest（参数摘要，敏感值脱敏后入摘要）；result（ok/fail）；trace_id；ip；created_at（只追加，不提供修改/删除 API）
+- **file_object**：bucket + object_key 唯一；biz_type + biz_id（业务引用，非管理员禁删，管理员可强制删）；visibility（private/public_signed）；**删除语义=逻辑删元数据，物理对象由回收任务按保留期延迟删除**
+- **operation_log**：account_id；on_behalf_of（双身份的末端用户，可空）；service_id（服务调用方可空）；action；target；params_digest（参数摘要，敏感字段名命中脱敏清单后以 *** 入摘要）；result（ok/fail）；trace_id；ip；created_at（只追加，不提供修改/删除 API）
 - **domain_event**：event_type；aggregate_type + aggregate_id；payload（JSON）；status（pending/sent/dead）；retry_count；next_retry_at；sent_at
+- **guardian_profile / student_profile**：加密列（phone_enc / student_no，AES-256-GCM 随机 IV）之外各配一列确定性哈希（phone_hash / student_no_hash，HMAC-SHA256，独立密钥 `slate.crypto.hmac-key`）——**加密列不可等值比较，等值查询/唯一键一律走哈希列**；哈希列各建唯一键
+- **dict_item / sys_config**：删除即物理删除（变更历史由 @Audited 操作审计留痕）；sys_config 取值按作用域回退解析（CAMPUS 未命中回落 GLOBAL）
 
 ## 4. Redis 键设计（底座所辖）
 
 | 键模式 | 用途 | TTL |
 |---|---|---|
-| `idem:{service}:{key}` | 幂等首次结果（design §3.1 决策 3） | 24h |
-| `refresh:{accountId}:{jti}` | refresh token 白名单（登出即删=撤销） | 7d |
+| `idem:web:{accountId}:{key}` | 幂等首次结果（design §3.1 决策 3；按账号隔离，防跨用户互取响应；5xx 不缓存可重试） | 24h |
+| `idem:processing:{accountId}:{key}` | 幂等处理中占位（进程崩溃后短 TTL 自动放行） | 5min |
+| `refresh:{accountId}:{jti}` | refresh token 白名单（登出即删=撤销；Redis 开 AOF 持久化） | 7d |
 | `login:fail:{username}` | 连续失败锁定计数（≥5 锁 15 分钟） | 15min |
-| `perm:{accountId}` | 角色+权限集缓存（角色变更时主动失效） | 30min |
-| `dict:{type}` | 字典缓存（变更时失效） | 1h |
+| `perm:{accountId}` | 角色+权限集+账号状态缓存（角色变更时主动失效；禁用账号在 TTL 内即时拒绝） | 30min |
+| `dict:{type}` | 字典缓存（变更时失效；Redis 故障降级直查 DB） | 1h |
+| `file:key:{objectKey}` | 预签名上传凭证（绑定签发人与业务类型，登记成功即消费） | 30min |
+| `file:quota:{userId}:{yyyyMMdd}` | 每用户每日预签名签发配额计数 | 48h |
 
 > 会话不落 Redis（JWT 无状态），refresh 白名单是唯一服务端登录态；多端登录策略一期不做限制。
+
+## 5. 只增不减数据的保留期（RetentionWorker / FileRetentionWorker 每日执行）
+
+| 数据 | 保留期（`slate.retention.*` 可调） | 到期动作 |
+|---|---|---|
+| login_log | login-log-days=180 | 物理删除 |
+| operation_log | operation-log-days=365 | 物理删除 |
+| 已读 message_delivery | read-delivery-days=90 | 删除投递行；零投递的孤儿消息一并删除 |
+| message_delivery（未读） | 不清理（用户未读权益优先） | — |
+| SENT domain_event | sent-event-days=30 | 删除；DEAD 事件保留待人工排查 |
+| 软删 file_object 的物理对象 | deleted-file-days=7 | 删除 MinIO 对象（元数据行保留为墓碑） |
+| MinIO 无元数据孤儿对象 | orphan-file-hours=48 | 删除（覆盖上传未登记/登记失败残留） |

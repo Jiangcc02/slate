@@ -6,13 +6,15 @@
 package com.slate.platform.internal.file.config;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.context.properties.bind.DefaultValue;
 
 import java.util.List;
 import java.util.Map;
 
-/** whitelist.<bizType>.extensions / whitelist.<bizType>.max-size-bytes */
+/** whitelist.<bizType>.extensions / whitelist.<bizType>.max-size-bytes；daily-upload-quota=每用户每日预签名签发配额 */
 @ConfigurationProperties(prefix = "slate.files")
-public record FileProperties(Map<String, WhitelistRule> whitelist) {
+public record FileProperties(Map<String, WhitelistRule> whitelist,
+                             @DefaultValue("200") long dailyUploadQuota) {
 
     public record WhitelistRule(List<String> extensions, long maxSizeBytes) {
     }

@@ -25,6 +25,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.io.InputStream;
 
 @RestController
 @RequestMapping("/api/v1/users")
@@ -90,6 +91,8 @@ public class UserController {
     @Audited(action = "user.import", target = "user_profile")
     public ImportResult importStudents(@RequestParam("file") MultipartFile file,
                                        @RequestParam(defaultValue = "2026-2027") String academicYear) throws IOException {
-        return importService.importStudents(file.getInputStream(), academicYear);
+        try (InputStream in = file.getInputStream()) {
+            return importService.importStudents(in, academicYear);
+        }
     }
 }

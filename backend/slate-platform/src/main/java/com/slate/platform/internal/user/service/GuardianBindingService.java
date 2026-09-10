@@ -18,6 +18,7 @@ import com.slate.platform.internal.user.entity.GuardianStudent;
 import com.slate.platform.internal.user.error.UserErrorCode;
 import com.slate.platform.internal.user.mapper.GuardianProfileMapper;
 import com.slate.platform.internal.user.mapper.GuardianStudentMapper;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -60,29 +61,43 @@ public class GuardianBindingService {
                 .stream().map(this::toDto).toList();
     }
 
-    /** 发起绑定：按手机号定位家长档（不存在则建档+开户），生成 pending；重复绑定幂等返回既有记录 */
+    /** 发起绑定：按手机号哈希定位家长档（不存在则建档+开户），生成 pending；重复绑定幂等返回既有记录 */
     @Transactional
     public GuardianBindingDto bind(GuardianBindingDto.BindRequest request) {
         UserProfile student = profileMapper.selectById(request.studentId());
         if (student == null || !"STUDENT".equals(student.getUserType())) {
             throw new BusinessException(UserErrorCode.USER_003);
         }
-        String phoneEnc = aes.encrypt(request.phone());
+        // 等值定位走确定性哈希列（随机 IV 加密列不可比较）；并发建档撞唯一键时回读既有档
+        String phoneHash = aes.hmac(request.phone());
         GuardianProfile guardian = guardianProfileMapper.selectOne(
-                new LambdaQueryWrapper<GuardianProfile>().eq(GuardianProfile::getPhoneEnc, phoneEnc));
+                new LambdaQueryWrapper<GuardianProfile>().eq(GuardianProfile::getPhoneHash, phoneHash));
         Long guardianId;
         if (guardian == null) {
             guardianId = idGenerator.nextId();
             GuardianProfile created = new GuardianProfile();
             created.setUserId(guardianId);
-            created.setPhoneEnc(phoneEnc);
-            guardianProfileMapper.insert(created);
-            UserProfile guardianUser = new UserProfile();
-            guardianUser.setId(guardianId);
-            guardianUser.setRealName(request.relation() + "（" + AesCipher.maskTail(request.phone(), 3, 4) + "）");
-            guardianUser.setUserType("GUARDIAN");
-            profileMapper.insert(guardianUser);
-            // 家长开户随其本人首次登录/通知触达流程（一期家长端未上线，账号延后激活）
+            created.setPhoneEnc(aes.encrypt(request.phone()));
+            created.setPhoneHash(phoneHash);
+            try {
+                guardianProfileMapper.insert(created);
+            } catch (DuplicateKeyException e) {
+                guardian = guardianProfileMapper.selectOne(
+                        new LambdaQueryWrapper<GuardianProfile>().eq(GuardianProfile::getPhoneHash, phoneHash));
+                if (guardian == null) {
+                    throw e;
+                }
+            }
+            if (guardian != null && !guardian.getUserId().equals(guardianId)) {
+                guardianId = guardian.getUserId();
+            } else {
+                UserProfile guardianUser = new UserProfile();
+                guardianUser.setId(guardianId);
+                guardianUser.setRealName(request.relation() + "（" + AesCipher.maskTail(request.phone(), 3, 4) + "）");
+                guardianUser.setUserType("GUARDIAN");
+                profileMapper.insert(guardianUser);
+                // 家长开户随其本人首次登录/通知触达流程（一期家长端未上线，账号延后激活）
+            }
         } else {
             guardianId = guardian.getUserId();
         }
@@ -102,7 +117,18 @@ public class GuardianBindingService {
         binding.setIsPrimary(request.isPrimary() == null ? 0 : request.isPrimary());
         binding.setStatus(GuardianStudent.PENDING);
         if (exists == null) {
-            bindingMapper.insert(binding);
+            try {
+                bindingMapper.insert(binding);
+            } catch (DuplicateKeyException e) {
+                // 并发重复绑定撞 uk_gs：按幂等语义回读既有记录返回
+                GuardianStudent raced = bindingMapper.selectOne(new LambdaQueryWrapper<GuardianStudent>()
+                        .eq(GuardianStudent::getGuardianId, guardianId)
+                        .eq(GuardianStudent::getStudentId, request.studentId()));
+                if (raced == null) {
+                    throw e;
+                }
+                return toDto(raced);
+            }
         } else {
             bindingMapper.updateById(binding);
         }
@@ -139,6 +165,7 @@ public class GuardianBindingService {
         GuardianProfile guardianSub = guardianProfileMapper.selectById(binding.getGuardianId());
         String phone = guardianSub == null || guardianSub.getPhoneEnc() == null
                 ? null : AesCipher.maskTail(aes.decrypt(guardianSub.getPhoneEnc()), 3, 4);
+        // 学生姓名保留明文：绑定确认需要核对孩子身份；是否随家长端确认流程脱敏待家长端设计裁定
         return new GuardianBindingDto(
                 binding.getId(), binding.getGuardianId(),
                 guardian == null ? null : AesCipher.maskName(guardian.getRealName()), phone,

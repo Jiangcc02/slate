@@ -6,6 +6,7 @@
 package com.slate.platform.internal.user.service;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.slate.common.error.BusinessException;
 import com.slate.common.result.PageQuery;
 import com.slate.common.result.PageResult;
@@ -24,6 +25,7 @@ import com.slate.platform.internal.user.mapper.StudentProfileMapper;
 import com.slate.platform.internal.user.mapper.TeacherProfileMapper;
 import com.slate.platform.internal.auth.entity.UserProfile;
 import com.slate.platform.internal.auth.mapper.UserProfileMapper;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -68,19 +70,23 @@ public class UserService {
         this.aes = aes;
     }
 
-    /** 检索：按角色类型/姓名/账号状态过滤；默认脱敏 */
+    /** 检索：按角色类型/姓名/账号状态过滤；SQL 分页（总量下推数据库）；默认脱敏 */
     public PageResult<UserDto> search(String userType, String realName, String accountStatus, PageQuery query) {
         LambdaQueryWrapper<UserProfile> wrapper = new LambdaQueryWrapper<>();
         if (userType != null && !userType.isBlank()) {
             wrapper.eq(UserProfile::getUserType, userType);
         }
         if (realName != null && !realName.isBlank()) {
-            wrapper.like(UserProfile::getRealName, realName);
+            wrapper.like(UserProfile::getRealName, escapeLike(realName.trim()));
+        }
+        if (accountStatus != null && !accountStatus.isBlank()) {
+            // account 与 user_profile 1:1：exists 子查询把状态过滤下推数据库（参数绑定，无拼接注入面）
+            wrapper.exists("SELECT 1 FROM account a WHERE a.user_id = user_profile.id AND a.status = {0}",
+                    accountStatus);
         }
         wrapper.orderByDesc(UserProfile::getId);
-        List<UserProfile> profiles = profileMapper.selectList(wrapper);
-        List<UserProfile> page = profiles.stream()
-                .skip(query.offset()).limit(query.limitedSize()).toList();
+        Page<UserProfile> result = profileMapper.selectPage(new Page<>(query.getPage(), query.limitedSize()), wrapper);
+        List<UserProfile> page = result.getRecords();
         Map<Long, Account> accounts = page.isEmpty() ? Map.of()
                 : accountMapper.selectList(new LambdaQueryWrapper<Account>()
                         .in(Account::getUserId, page.stream().map(UserProfile::getId).toList()))
@@ -92,7 +98,7 @@ public class UserService {
                 .map(p -> toDto(p, accounts.get(p.getId()), students.get(p.getId()),
                         teachers.get(p.getId()), guardians.get(p.getId()), false))
                 .toList();
-        return new PageResult<>(dtos, profiles.size(), query.getPage(), query.limitedSize());
+        return new PageResult<>(dtos, result.getTotal(), query.getPage(), query.limitedSize());
     }
 
     /** 详情；reveal=true 返回明文（需 user:lifecycle 权限，控制器控制） */
@@ -109,6 +115,7 @@ public class UserService {
     @Transactional
     public UserDto create(UserDto.CreateRequest request) {
         assertPhoneAvailable(request.phone());
+        assertStudentNoAvailable(request.studentNo());
         Long userId = idGenerator.nextId();
         UserProfile profile = new UserProfile();
         profile.setId(userId);
@@ -122,16 +129,28 @@ public class UserService {
         account.setPasswordHash(passwordEncoder.encode(randomPassword()));
         account.setStatus("active");
         account.setUserId(userId);
-        accountMapper.insert(account);
+        try {
+            accountMapper.insert(account);
+        } catch (DuplicateKeyException e) {
+            // 查后插竞态由 uk_account_username 兜底：转业务码而非 500
+            throw new BusinessException(UserErrorCode.USER_008);
+        }
         return get(userId, false);
     }
 
+    /** 更新：PATCH 语义 null=保留（漏传字段不清空存量）；学籍号冲突由唯一键兜底转业务码 */
     @Transactional
     public void update(Long id, UserDto.UpdateRequest request) {
         UserProfile profile = requireProfile(id);
-        profile.setRealName(request.realName());
+        if (request.realName() != null && !request.realName().isBlank()) {
+            profile.setRealName(request.realName());
+        }
         profileMapper.updateById(profile);
-        fillSubProfile(id, null, request);
+        try {
+            fillSubProfile(id, null, request);
+        } catch (DuplicateKeyException e) {
+            throw new BusinessException(UserErrorCode.USER_007);
+        }
     }
 
     /** 生命周期：disable 撤销全部 refresh；reset-password 返回一次性新密码 */
@@ -173,44 +192,57 @@ public class UserService {
         return profile;
     }
 
+    /** 子档填充：create 全量、update PATCH 语义（null=保留，与契约对齐）；单次查库，insert/update 二选一 */
     private void fillSubProfile(Long userId, UserDto.CreateRequest create, UserDto.UpdateRequest update) {
         String userType = create != null ? create.userType() : requireProfile(userId).getUserType();
         switch (userType) {
             case "STUDENT" -> {
                 StudentProfile student = studentMapper.selectById(userId);
-                if (student == null) {
+                boolean insert = student == null;
+                if (insert) {
                     student = new StudentProfile();
                     student.setUserId(userId);
                 }
                 if (create != null) {
-                    student.setStudentNo(emptyToNull(create.studentNo()) == null ? null
-                            : aes.encrypt(create.studentNo()));
+                    applyStudentNo(student, create.studentNo());
                     student.setGradeEntry(create.gradeEntry());
                 } else {
-                    student.setStudentNo(emptyToNull(update.studentNo()) == null ? student.getStudentNo()
-                            : aes.encrypt(update.studentNo()));
-                    student.setGradeEntry(update.gradeEntry());
+                    if (update.studentNo() != null) {
+                        applyStudentNo(student, update.studentNo());
+                    }
+                    if (update.gradeEntry() != null) {
+                        student.setGradeEntry(update.gradeEntry());
+                    }
                 }
-                if (studentMapper.selectById(userId) == null) {
+                if (insert) {
                     studentMapper.insert(student);
                 } else {
                     studentMapper.updateById(student);
                 }
             }
             case "TEACHER" -> {
-                TeacherProfile teacher = teacherMapper.selectById(userId) == null
-                        ? new TeacherProfile() : teacherMapper.selectById(userId);
-                teacher.setUserId(userId);
+                TeacherProfile teacher = teacherMapper.selectById(userId);
+                boolean insert = teacher == null;
+                if (insert) {
+                    teacher = new TeacherProfile();
+                    teacher.setUserId(userId);
+                }
                 if (create != null) {
                     teacher.setStaffNo(create.staffNo());
                     teacher.setSubject(create.subject());
                     teacher.setTitle(create.title());
                 } else {
-                    teacher.setStaffNo(update.staffNo());
-                    teacher.setSubject(update.subject());
-                    teacher.setTitle(update.title());
+                    if (update.staffNo() != null) {
+                        teacher.setStaffNo(update.staffNo());
+                    }
+                    if (update.subject() != null) {
+                        teacher.setSubject(update.subject());
+                    }
+                    if (update.title() != null) {
+                        teacher.setTitle(update.title());
+                    }
                 }
-                if (teacherMapper.selectById(userId) == null) {
+                if (insert) {
                     teacherMapper.insert(teacher);
                 } else {
                     teacherMapper.updateById(teacher);
@@ -223,15 +255,36 @@ public class UserService {
         }
     }
 
+    /** 学籍号：加密列 + 确定性哈希列同步写（空串=显式清空） */
+    private void applyStudentNo(StudentProfile student, String plain) {
+        String no = emptyToNull(plain);
+        student.setStudentNo(no == null ? null : aes.encrypt(no));
+        student.setStudentNoHash(no == null ? null : aes.hmac(no));
+    }
+
     void assertPhoneAvailable(String phone) {
         if (phone == null || phone.isBlank()) {
             return;
         }
-        String enc = aes.encrypt(phone);
         if (guardianMapper.selectCount(new LambdaQueryWrapper<GuardianProfile>()
-                .eq(GuardianProfile::getPhoneEnc, enc)) > 0) {
+                .eq(GuardianProfile::getPhoneHash, aes.hmac(phone))) > 0) {
             throw new BusinessException(UserErrorCode.USER_002);
         }
+    }
+
+    void assertStudentNoAvailable(String studentNo) {
+        if (studentNo == null || studentNo.isBlank()) {
+            return;
+        }
+        if (studentMapper.selectCount(new LambdaQueryWrapper<StudentProfile>()
+                .eq(StudentProfile::getStudentNoHash, aes.hmac(studentNo))) > 0) {
+            throw new BusinessException(UserErrorCode.USER_007);
+        }
+    }
+
+    /** LIKE 通配符转义：用户输入的 %/_ 按字面匹配，防扫描放大 */
+    private static String escapeLike(String value) {
+        return value.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
     }
 
     private String resolveUsername(String requested, String userType, Long userId) {

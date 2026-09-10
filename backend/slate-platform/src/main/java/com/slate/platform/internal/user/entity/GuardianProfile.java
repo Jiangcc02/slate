@@ -17,6 +17,7 @@ public class GuardianProfile {
     @TableId(type = IdType.INPUT)
     private Long userId;
     private String phoneEnc;   // AES-GCM 加密文本
+    private String phoneHash;   // HMAC-SHA256 确定性哈希（等值查询/唯一键 uk_gp_phone_hash）
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -24,6 +25,8 @@ public class GuardianProfile {
     public void setUserId(Long userId) { this.userId = userId; }
     public String getPhoneEnc() { return phoneEnc; }
     public void setPhoneEnc(String phoneEnc) { this.phoneEnc = phoneEnc; }
+    public String getPhoneHash() { return phoneHash; }
+    public void setPhoneHash(String phoneHash) { this.phoneHash = phoneHash; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
     public LocalDateTime getUpdatedAt() { return updatedAt; }

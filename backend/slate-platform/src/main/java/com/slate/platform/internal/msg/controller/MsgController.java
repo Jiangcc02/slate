@@ -25,8 +25,6 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import java.util.List;
-
 @RestController
 public class MsgController {
 
@@ -73,8 +71,8 @@ public class MsgController {
     // ── 公告 ──
 
     @GetMapping("/api/v1/announcements")
-    public List<AnnouncementDto> list() {
-        return announcementService.list();
+    public PageResult<AnnouncementDto> list(PageQuery query) {
+        return announcementService.list(query);
     }
 
     @PostMapping("/api/v1/announcements")
